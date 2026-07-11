@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "expo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start"],
+      "cwd": "app",
+      "port": 8081
+    }
+  ]
+}
