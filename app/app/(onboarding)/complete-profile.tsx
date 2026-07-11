@@ -48,6 +48,12 @@ function Chip({
 export default function CompleteProfile() {
   const profile = useSession((s) => s.profile);
   const refreshProfile = useSession((s) => s.refreshProfile);
+  const signOut = useSession((s) => s.signOut);
+
+  async function onSignOut() {
+    await signOut();
+    router.replace('/(onboarding)/welcome');
+  }
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [role, setRole] = useState<Profile['role']>(profile?.role ?? 'student');
@@ -152,6 +158,14 @@ export default function CompleteProfile() {
 
         <View className="px-6 pb-4">
           <Button label="Enter Meau" loading={loading} onPress={onSave} />
+          <Pressable
+            onPress={onSignOut}
+            disabled={loading}
+            accessibilityRole="button"
+            className="py-3 active:opacity-60"
+          >
+            <Text className="text-muted text-sm text-center">Not you? Sign out</Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
