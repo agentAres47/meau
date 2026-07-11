@@ -1,22 +1,21 @@
-import { View, Text } from 'react-native';
-import { Link } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../components/Button';
+import { View, ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
+import { colors } from '../theme/tokens';
+import { useSession } from '../store/session';
 
-// Phase 1 replaces the CTA below with real Amizone-login routing + session gate.
-export default function Welcome() {
-  return (
-    <SafeAreaView className="flex-1 bg-bg px-6" edges={['top', 'bottom']}>
-      <View className="flex-1 justify-end pb-8">
-        <Text className="text-text text-xxl font-bold">Meau</Text>
-        <Text className="text-muted text-base mt-2 mb-10">
-          Ride together with people who already belong here.
-        </Text>
-        <Button label="Login with Amizone" variant="primary" disabled />
-        <Link href="/scratch" asChild>
-          <Text className="text-muted text-xs text-center mt-6">dev: view components →</Text>
-        </Link>
+// Session gate (04-APP-STRUCTURE.md). Reads auth/profile status and redirects.
+export default function Index() {
+  const status = useSession((s) => s.status);
+
+  if (status === 'loading') {
+    return (
+      <View className="flex-1 bg-bg items-center justify-center">
+        <ActivityIndicator color={colors.accent} />
       </View>
-    </SafeAreaView>
-  );
+    );
+  }
+
+  if (status === 'onboarding') return <Redirect href="/(onboarding)/welcome" />;
+  if (status === 'incomplete') return <Redirect href="/(onboarding)/complete-profile" />;
+  return <Redirect href="/(tabs)/passenger" />;
 }

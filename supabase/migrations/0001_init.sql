@@ -160,9 +160,12 @@ alter table messages enable row level security;
 alter table push_tokens enable row level security;
 
 -- profiles: everyone (signed in) can read; only the owner can update.
+-- NO client insert policy on purpose: profile rows are created ONLY by the
+-- amizone-auth service (service role) after a real Amizone verification. If
+-- clients could insert their own row they could forge verified_amity=true and
+-- bypass verification entirely.
 create policy "profiles_select_all" on profiles for select using (auth.uid() is not null);
 create policy "profiles_update_own" on profiles for update using (auth_user_id = auth.uid());
-create policy "profiles_insert_own" on profiles for insert with check (auth_user_id = auth.uid());
 
 -- vehicles: owner-only CRUD. Others see vehicle info via the matching service (service role).
 create policy "vehicles_owner_crud" on vehicles for all
