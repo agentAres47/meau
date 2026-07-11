@@ -68,6 +68,20 @@ app.post('/verify', verifyLimiter, async (req, res) => {
     return res.status(401).json({ verified: false, error: 'invalid_credentials' });
   }
 
+  // Release this session from any OTHER identity it was previously bound to
+  // (account switch, or a developer testing several IDs on one device). Because
+  // auth_user_id is unique, without this a new amizone_id on the same anonymous
+  // session collides on insert. The released profile keeps its data and re-links
+  // by amizone_id next time that person logs in.
+  const { error: relErr } = await admin
+    .from('profiles')
+    .update({ auth_user_id: null })
+    .eq('auth_user_id', authUserId)
+    .neq('amizone_id', profile.amizone_id);
+  if (relErr) {
+    return res.status(500).json({ error: 'profile_unbind_failed' });
+  }
+
   // Create or re-link the profile using the service role. On re-login (same
   // amizone_id, fresh anonymous user) we re-link auth_user_id and refresh the
   // Amizone-sourced fields, but preserve user-completed fields (role, phone,
