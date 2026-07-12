@@ -23,26 +23,29 @@ export default function Driver() {
   const [token, setToken] = useState<RideToken | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!profile) return;
-    const [d, t] = await Promise.all([
-      getDriverStatus(profile.id),
-      profile.is_driver_verified ? getMyActiveToken(profile.id) : Promise.resolve(null),
-    ]);
-    setStatus(d.status);
-    setToken(t);
-  }, [profile]);
-
+  // Depend only on the stable refreshProfile so the effect runs once per focus
+  // (not on every profile-object change, which would churn and never resolve).
+  // Read the freshest profile via getState() after refreshing.
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      refreshProfile().then(() => {
-        if (alive) load();
-      });
+      (async () => {
+        await refreshProfile();
+        const p = useSession.getState().profile;
+        if (!alive || !p) return;
+        const [d, t] = await Promise.all([
+          getDriverStatus(p.id),
+          p.is_driver_verified ? getMyActiveToken(p.id) : Promise.resolve(null),
+        ]);
+        if (alive) {
+          setStatus(d.status);
+          setToken(t);
+        }
+      })();
       return () => {
         alive = false;
       };
-    }, [load, refreshProfile])
+    }, [refreshProfile])
   );
 
   async function onCancel() {
