@@ -14,7 +14,7 @@ export default function Welcome() {
         <Button
           label="Login with Amizone"
           variant="primary"
-          onPress={() => router.push('/(onboarding)/amizone-login')}
+          onPress={() => router.push('/(onboarding)/amizone-webview')}
         />
         <Text className="text-muted text-xs text-center mt-4">
           Only verified Amity Mumbai members can join.

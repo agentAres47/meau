@@ -22,7 +22,10 @@ function useAuthGuard() {
     const inOnboarding = segments[0] === '(onboarding)';
     const atCompleteProfile = inOnboarding && segments[1] === 'complete-profile';
     const inAuthScreens =
-      inOnboarding && (segments[1] === 'welcome' || segments[1] === 'amizone-login');
+      inOnboarding &&
+      (segments[1] === 'welcome' ||
+        segments[1] === 'amizone-login' ||
+        segments[1] === 'amizone-webview');
 
     // Only enforce the onboarding boundary. A ready user is free to roam every
     // authed route (tabs, profile, ride, match, modal...) — just not onboarding.

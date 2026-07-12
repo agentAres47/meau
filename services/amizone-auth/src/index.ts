@@ -19,6 +19,65 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+type ProfileFields = {
+  amizone_id: string;
+  full_name: string;
+  role: 'student' | 'faculty' | 'staff';
+  batch: string | null;
+  department: string | null;
+};
+
+// Create or re-link a verified profile row (service role). Shared by both verify
+// paths. Releases this session from any other identity first (auth_user_id is
+// unique), then updates the existing row for this amizone_id or inserts a new
+// one — preserving user-completed fields (role, phone, gender) on re-login.
+// Returns null on success or a short error code.
+async function linkProfile(authUserId: string, p: ProfileFields): Promise<string | null> {
+  const { error: relErr } = await admin
+    .from('profiles')
+    .update({ auth_user_id: null })
+    .eq('auth_user_id', authUserId)
+    .neq('amizone_id', p.amizone_id);
+  if (relErr) return 'profile_unbind_failed';
+
+  const { data: existing, error: selErr } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('amizone_id', p.amizone_id)
+    .maybeSingle();
+  if (selErr) return 'profile_lookup_failed';
+
+  if (existing) {
+    const { error } = await admin
+      .from('profiles')
+      .update({
+        auth_user_id: authUserId,
+        full_name: p.full_name,
+        batch: p.batch,
+        department: p.department,
+      })
+      .eq('amizone_id', p.amizone_id);
+    return error ? 'profile_link_failed' : null;
+  }
+
+  const { error } = await admin.from('profiles').insert({
+    auth_user_id: authUserId,
+    amizone_id: p.amizone_id,
+    full_name: p.full_name,
+    role: p.role,
+    batch: p.batch,
+    department: p.department,
+    verified_amity: true,
+  });
+  return error ? 'profile_create_failed' : null;
+}
+
+// Resolve the app's anonymous Supabase session -> auth user id, or null if bad.
+async function resolveAuthUser(token: string): Promise<string | null> {
+  const { data, error } = await admin.auth.getUser(token);
+  return error || !data.user ? null : data.user.id;
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -46,14 +105,12 @@ app.post('/verify', verifyLimiter, async (req, res) => {
     return res.status(401).json({ error: 'missing_session' });
   }
 
-  // Validate the app's anonymous Supabase session and resolve its auth user id.
-  // This ties the verified profile to a real session so verified_amity can't be
-  // forged by a client writing its own profile row (client insert is disabled by RLS).
-  const { data: userData, error: userErr } = await admin.auth.getUser(token);
-  if (userErr || !userData.user) {
+  // Validate the app's anonymous Supabase session so verified_amity can't be
+  // forged by a client writing its own row (client insert is disabled by RLS).
+  const authUserId = await resolveAuthUser(token);
+  if (!authUserId) {
     return res.status(401).json({ error: 'invalid_session' });
   }
-  const authUserId = userData.user.id;
 
   let profile;
   try {
@@ -68,59 +125,53 @@ app.post('/verify', verifyLimiter, async (req, res) => {
     return res.status(401).json({ verified: false, error: 'invalid_credentials' });
   }
 
-  // Release this session from any OTHER identity it was previously bound to
-  // (account switch, or a developer testing several IDs on one device). Because
-  // auth_user_id is unique, without this a new amizone_id on the same anonymous
-  // session collides on insert. The released profile keeps its data and re-links
-  // by amizone_id next time that person logs in.
-  const { error: relErr } = await admin
-    .from('profiles')
-    .update({ auth_user_id: null })
-    .eq('auth_user_id', authUserId)
-    .neq('amizone_id', profile.amizone_id);
-  if (relErr) {
-    return res.status(500).json({ error: 'profile_unbind_failed' });
-  }
-
-  // Create or re-link the profile using the service role. On re-login (same
-  // amizone_id, fresh anonymous user) we re-link auth_user_id and refresh the
-  // Amizone-sourced fields, but preserve user-completed fields (role, phone,
-  // gender) so onboarding isn't undone.
-  const { data: existing, error: selErr } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('amizone_id', profile.amizone_id)
-    .maybeSingle();
-
-  if (selErr) {
-    return res.status(500).json({ error: 'profile_lookup_failed' });
-  }
-
-  if (existing) {
-    const { error } = await admin
-      .from('profiles')
-      .update({
-        auth_user_id: authUserId,
-        full_name: profile.full_name,
-        batch: profile.batch,
-        department: profile.department,
-      })
-      .eq('amizone_id', profile.amizone_id);
-    if (error) return res.status(500).json({ error: 'profile_link_failed' });
-  } else {
-    const { error } = await admin.from('profiles').insert({
-      auth_user_id: authUserId,
-      amizone_id: profile.amizone_id,
-      full_name: profile.full_name,
-      role: profile.role,
-      batch: profile.batch,
-      department: profile.department,
-      verified_amity: true,
-    });
-    if (error) return res.status(500).json({ error: 'profile_create_failed' });
-  }
+  const linkErr = await linkProfile(authUserId, profile);
+  if (linkErr) return res.status(500).json({ error: linkErr });
 
   return res.json({ verified: true, profile });
+});
+
+// Client-attested verification: the app drove a real Amizone login inside a
+// WebView (human solved Cloudflare Turnstile — automation is blocked, see
+// AMIZONE-CLOUDFLARE-REALITY.md) and scraped the /IDCard profile. We trust that
+// scrape here — the server can't independently re-verify because the Amizone
+// session cookie is HttpOnly (server-side re-verification needs a dev build with
+// native cookie access; documented as v2 hardening). Row creation still happens
+// server-side so RLS/ownership stay consistent.
+app.post('/verify-webview', verifyLimiter, async (req, res) => {
+  const body = (req.body ?? {}) as {
+    amizone_id?: string;
+    full_name?: string;
+    batch?: string | null;
+    department?: string | null;
+  };
+  const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+
+  const amizoneId = (body.amizone_id ?? '').trim();
+  const fullName = (body.full_name ?? '').trim();
+  // Validate at this trust boundary: enrollment ids are alphanumeric; name non-empty.
+  if (!/^[A-Za-z0-9]{4,20}$/.test(amizoneId) || fullName.length < 2 || fullName.length > 100) {
+    return res.status(400).json({ error: 'invalid_profile' });
+  }
+  if (!token) {
+    return res.status(401).json({ error: 'missing_session' });
+  }
+
+  const authUserId = await resolveAuthUser(token);
+  if (!authUserId) {
+    return res.status(401).json({ error: 'invalid_session' });
+  }
+
+  const linkErr = await linkProfile(authUserId, {
+    amizone_id: amizoneId,
+    full_name: fullName,
+    role: 'student', // IDCard doesn't expose role; user confirms in complete-profile
+    batch: (body.batch ?? null)?.toString().slice(0, 100) || null,
+    department: (body.department ?? null)?.toString().slice(0, 100) || null,
+  });
+  if (linkErr) return res.status(500).json({ error: linkErr });
+
+  return res.json({ verified: true });
 });
 
 app.listen(PORT, () => {
