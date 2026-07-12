@@ -1,5 +1,16 @@
 const BASE = process.env.EXPO_PUBLIC_AMIZONE_AUTH_URL;
 
+// fetch with a hard timeout so a bad network path fails fast instead of hanging.
+async function fetchWithTimeout(url: string, init: RequestInit, ms = 12000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Calls the amizone-auth service to verify credentials and create/link the
 // profile row server-side. The password leaves the device only to this call and
 // is never stored anywhere. Throws a user-facing message on failure.
@@ -57,7 +68,7 @@ export async function verifyWebview(params: {
 
   let res: Response;
   try {
-    res = await fetch(`${BASE}/verify-webview`, {
+    res = await fetchWithTimeout(`${BASE}/verify-webview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

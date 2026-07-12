@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -19,39 +19,31 @@ import { verifyWebview } from '../../lib/amizone';
 
 const AMIZONE_URL = 'https://s.amizone.net/';
 
-// Injected on the login page: fills the given credentials, then polls for the
-// Cloudflare Turnstile token (populated once the human ticks the box) and
-// auto-submits. The password lives only inside this injected script's execution
-// in the WebView — never logged or stored.
-function loginScript(id: string, password: string): string {
+// Injected on the login page: pre-fills the credentials so the user doesn't
+// retype. The password lives only inside this script's execution in the WebView
+// — never logged or stored. No auto-submit: the user ticks Turnstile and taps
+// Amizone's Login button (the flow that works reliably).
+function fillScript(id: string, password: string): string {
   const U = JSON.stringify(id);
   const P = JSON.stringify(password);
   return `(function(){
     function post(o){try{window.ReactNativeWebView.postMessage(JSON.stringify(o));}catch(e){}}
     try{
-      var form=document.getElementById('loginform');
-      if(!form){ post({type:'status',loggedIn:true}); return; }
-      var u=document.getElementById('_UserName'), p=document.getElementById('_Password');
-      if(u && !u.value){ u.value=${U}; u.dispatchEvent(new Event('input',{bubbles:true})); u.dispatchEvent(new Event('change',{bubbles:true})); }
-      if(p && !p.value){ p.value=${P}; p.dispatchEvent(new Event('input',{bubbles:true})); p.dispatchEvent(new Event('change',{bubbles:true})); }
-      post({type:'status',loggedIn:false});
-      if(!window.__meauPoll){
-        window.__meauPoll=setInterval(function(){
-          var tok=document.querySelector('[name=cf-turnstile-response]');
-          if(tok && tok.value){
-            clearInterval(window.__meauPoll); window.__meauPoll=null;
-            post({type:'submitting'});
-            try{ if(form.requestSubmit){ form.requestSubmit(); } else { form.submit(); } }catch(e){ form.submit(); }
-          }
-        }, 400);
+      if(!document.getElementById('loginform')){
+        post({type:'status',loggedIn: location.href.toLowerCase().indexOf('error')<0});
+        return;
       }
+      var u=document.getElementById('_UserName'), p=document.getElementById('_Password');
+      if(u){ u.value=${U}; u.dispatchEvent(new Event('input',{bubbles:true})); u.dispatchEvent(new Event('change',{bubbles:true})); }
+      if(p){ p.value=${P}; p.dispatchEvent(new Event('input',{bubbles:true})); p.dispatchEvent(new Event('change',{bubbles:true})); }
+      post({type:'filled'});
     }catch(e){ post({type:'err',msg:String((e&&e.message)||e)}); }
   })(); true;`;
 }
 
-// After we've submitted, just report auth state — never re-fill or re-submit
-// (avoids a loop on wrong credentials).
-const CHECK_JS = `(function(){try{window.ReactNativeWebView.postMessage(JSON.stringify({type:'status',loggedIn:!document.getElementById('loginform')}));}catch(e){}})();true;`;
+// After submit, report auth state. Logged in = no login form AND not on Amizone's
+// error page (a rejected login redirects to /Error.html, which also lacks the form).
+const CHECK_JS = `(function(){try{var ok=!document.getElementById('loginform') && location.href.toLowerCase().indexOf('error')<0; window.ReactNativeWebView.postMessage(JSON.stringify({type:'status',loggedIn:ok}));}catch(e){}})();true;`;
 
 export default function AmizoneWebview() {
   const ensureSession = useSession((s) => s.ensureSession);
@@ -60,6 +52,7 @@ export default function AmizoneWebview() {
   const webRef = useRef<WebView>(null);
   const idRef = useRef('');
   const pwRef = useRef('');
+  const filled = useRef(false);
   const submitted = useRef(false);
   const done = useRef(false);
 
@@ -77,6 +70,7 @@ export default function AmizoneWebview() {
     }
     idRef.current = amizoneId.trim();
     pwRef.current = password;
+    filled.current = false;
     submitted.current = false;
     done.current = false;
     setPhase('browser');
@@ -94,17 +88,27 @@ export default function AmizoneWebview() {
       await refreshProfile();
       router.replace('/(onboarding)/complete-profile');
     } catch (e) {
-      done.current = false;
       failBackToCreds(e instanceof Error ? e.message : 'Something went wrong.');
     }
   }
 
   function failBackToCreds(message: string) {
+    filled.current = false;
     submitted.current = false;
+    done.current = false;
     setWorking(false);
     setError(message);
     setPhase('creds');
   }
+
+  // Watchdog: the loader must never spin forever.
+  useEffect(() => {
+    if (!working) return;
+    const t = setTimeout(() => {
+      failBackToCreds('That took too long. Check your connection and try again.');
+    }, 30000);
+    return () => clearTimeout(t);
+  }, [working]);
 
   function onMessage(e: WebViewMessageEvent) {
     let msg: Record<string, unknown>;
@@ -113,16 +117,14 @@ export default function AmizoneWebview() {
     } catch {
       return;
     }
-    if (msg.type === 'submitting') {
-      submitted.current = true;
-      setWorking(true); // hide the Amizone page behind our loading screen
+    if (msg.type === 'filled') {
+      filled.current = true;
       return;
     }
     if (msg.type === 'status') {
       if (msg.loggedIn === true) {
         completeVerification();
       } else if (submitted.current) {
-        // Back on the login page after submitting = bad credentials / turnstile.
         failBackToCreds('Amizone login failed. Check your Amizone ID and password.');
       }
     }
@@ -182,7 +184,7 @@ export default function AmizoneWebview() {
             <View className="flex-row items-center gap-2 px-4 py-3 bg-surface border-b border-surface2">
               <ShieldCheck color={colors.accent} size={18} />
               <Text className="text-text text-sm flex-1">
-                Tick “Verify you are human” below to finish.
+                Tick “Verify you are human”, then tap Login.
               </Text>
             </View>
           ) : null}
@@ -191,15 +193,25 @@ export default function AmizoneWebview() {
             ref={webRef}
             source={{ uri: AMIZONE_URL }}
             onMessage={onMessage}
+            onLoadStart={(e) => {
+              const url = e.nativeEvent.url ?? '';
+              // A main-frame navigation after we've filled = the login submit.
+              if (filled.current && !submitted.current && url.toLowerCase().includes('amizone.net')) {
+                submitted.current = true;
+                setWorking(true); // hide the page behind our loader
+              }
+            }}
             onLoadEnd={() =>
               webRef.current?.injectJavaScript(
-                submitted.current ? CHECK_JS : loginScript(idRef.current, pwRef.current)
+                submitted.current ? CHECK_JS : fillScript(idRef.current, pwRef.current)
               )
             }
+            // Fresh session every time — no remembered Amizone login, so the
+            // password is always actually verified.
+            incognito
             javaScriptEnabled
             domStorageEnabled
             thirdPartyCookiesEnabled
-            sharedCookiesEnabled
             userAgent="Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
             style={{ flex: 1, backgroundColor: colors.bg }}
           />
