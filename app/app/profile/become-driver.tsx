@@ -34,6 +34,12 @@ export default function BecomeDriver() {
 
   if (!profile) return null;
 
+  // Bikes carry exactly one passenger; cars default to 3 and are adjustable.
+  function selectType(t: 'car' | 'bike') {
+    setType(t);
+    setSeats(t === 'bike' ? 1 : 3);
+  }
+
   async function pickLicence() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -51,7 +57,12 @@ export default function BecomeDriver() {
     setError(null);
     if (!licenceUri) return setError('Upload a photo of your driving licence.');
     if (!makeModel.trim()) return setError('Enter your vehicle make and model.');
-    if (!plate.trim()) return setError('Enter your vehicle plate number.');
+
+    // Indian plate: e.g. MH01AB1234 (state + RTO + series + number), or a BH
+    // series like 22BH1234A. Spaces/hyphens are ignored.
+    const plateNorm = plate.trim().toUpperCase().replace(/[\s-]/g, '');
+    const valid = /^([A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4}|\d{2}BH\d{4}[A-Z]{1,2})$/.test(plateNorm);
+    if (!valid) return setError('Enter a valid plate number, e.g. MH01AB1234.');
 
     setLoading(true);
     try {
@@ -63,7 +74,7 @@ export default function BecomeDriver() {
           type,
           make_model: makeModel.trim(),
           color: color.trim(),
-          plate_number: plate.trim().toUpperCase(),
+          plate_number: plateNorm,
           seats,
         },
       });
@@ -122,8 +133,8 @@ export default function BecomeDriver() {
           <View className="gap-2">
             <Text className="text-sm text-muted">Vehicle type</Text>
             <View className="flex-row gap-2">
-              <Chip label="Car" selected={type === 'car'} onPress={() => setType('car')} disabled={loading} />
-              <Chip label="Bike" selected={type === 'bike'} onPress={() => setType('bike')} disabled={loading} />
+              <Chip label="Car" selected={type === 'car'} onPress={() => selectType('car')} disabled={loading} />
+              <Chip label="Bike" selected={type === 'bike'} onPress={() => selectType('bike')} disabled={loading} />
             </View>
           </View>
 
@@ -139,8 +150,13 @@ export default function BecomeDriver() {
           />
 
           <View className="flex-row items-center justify-between">
-            <Text className="text-text text-base">Seats for passengers</Text>
-            <Stepper value={seats} onChange={setSeats} min={1} max={6} />
+            <View className="flex-1 pr-3">
+              <Text className="text-text text-base">Seats for passengers</Text>
+              {type === 'bike' ? (
+                <Text className="text-muted text-xs mt-0.5">Bikes seat one passenger.</Text>
+              ) : null}
+            </View>
+            <Stepper value={seats} onChange={setSeats} min={1} max={type === 'bike' ? 1 : 6} />
           </View>
 
           {error ? <Text className="text-danger text-sm">{error}</Text> : null}
