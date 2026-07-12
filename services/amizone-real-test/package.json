@@ -1,0 +1,13 @@
+{
+  "name": "amizone-real-test",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway Step-2 experiment: can a real headless browser pass Amizone's Cloudflare Turnstile? Not part of the app.",
+  "scripts": {
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
