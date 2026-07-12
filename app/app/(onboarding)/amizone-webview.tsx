@@ -13,21 +13,27 @@ const AMIZONE_URL = 'https://s.amizone.net/';
 
 // Runs after every page load. On the login page it captures the Amizone ID from
 // the username field (that's our account key; login itself is the proof of
-// membership). When the login form is gone (and it's not the error page), the
-// user has reached their account = verified.
+// membership). The Amizone inputs have name="_UserName" but NO id, so we must
+// select by name — reading as the user types and again at submit. When the login
+// form is gone (and it's not the error page), the user is verified.
 const HOOK_JS = `(function(){
   function post(o){try{window.ReactNativeWebView.postMessage(JSON.stringify(o));}catch(e){}}
+  function grab(el){ if(!el) return; var v=(el.value||'').trim(); if(v){ post({type:'id',v:v}); } }
   try{
-    if(document.getElementById('loginform')){
-      var u=document.getElementById('_UserName');
-      if(u){
-        var v=(u.value||'').trim(); if(v){ post({type:'id',v:v}); }
-        if(!u.__meau){ u.__meau=true;
-          ['input','change','blur'].forEach(function(ev){
-            u.addEventListener(ev,function(){ var x=(u.value||'').trim(); if(x){ post({type:'id',v:x}); } });
-          });
-        }
+    var form=document.getElementById('loginform');
+    if(form){
+      var inputs=document.querySelectorAll('input[name="_UserName"]');
+      for(var i=0;i<inputs.length;i++){
+        (function(node){
+          grab(node);
+          if(!node.__meau){ node.__meau=true;
+            node.addEventListener('input',function(){ grab(node); });
+            node.addEventListener('change',function(){ grab(node); });
+            node.addEventListener('blur',function(){ grab(node); });
+          }
+        })(inputs[i]);
       }
+      if(!form.__meauS){ form.__meauS=true; form.addEventListener('submit',function(){ grab(form.querySelector('input[name="_UserName"]')); }); }
       post({type:'status',loggedIn:false});
     } else {
       post({type:'status',loggedIn: location.href.toLowerCase().indexOf('error')<0});
