@@ -63,7 +63,7 @@ services/
   amizone-auth/         # /verify + /verify-webview — creates verified profiles (service role)
   amizone-real-test/    # throwaway Playwright probe (evidence Turnstile blocks automation)
 supabase/migrations/    # schema + RLS + accept_ride_request RPC
-meau-specs/             # full product/build spec
+specs/                  # full product/build spec
 ```
 
 ## 🚀 Run it
