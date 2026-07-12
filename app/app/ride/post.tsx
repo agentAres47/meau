@@ -10,6 +10,7 @@ import { Button } from '../../components/Button';
 import { Stepper } from '../../components/Stepper';
 import { PriceSlider } from '../../components/PriceSlider';
 import { MapPreview } from '../../components/MapPreview';
+import { PlaceRow } from '../../components/PlaceRow';
 import { useSession } from '../../store/session';
 import { useRideDraft } from '../../store/rideDraft';
 import { getRoute, decodeRoute, suggestedPrice, type Route, type Place } from '../../lib/maps';
@@ -195,29 +196,5 @@ export default function PostRide() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function PlaceRow({
-  icon,
-  label,
-  value,
-  onPress,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" className="flex-row items-center gap-3 active:opacity-70">
-      <View className="w-4 items-center">{icon}</View>
-      <View className="flex-1">
-        <Text className="text-muted text-xs">{label}</Text>
-        <Text className={value ? 'text-text text-base' : 'text-muted text-base'} numberOfLines={1}>
-          {value ?? `Set ${label.toLowerCase()}`}
-        </Text>
-      </View>
-    </Pressable>
   );
 }
