@@ -6,30 +6,26 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { useSession } from '../../store/session';
-import { verifyWebview, type ScrapedProfile } from '../../lib/amizone';
+import { verifyWebview } from '../../lib/amizone';
 
 const AMIZONE_URL = 'https://s.amizone.net/';
 
-// Runs after every page load. Reports auth state; once on /IDCard, scrapes the
-// profile from the ASP.NET label ids go-amizone used (stable on this internal
-// page). Falls back to a text sample if the ids ever move, so we can re-target.
-const SCRAPE_JS = `(function(){
+// Runs after every page load. On the login page it captures the Amizone ID from
+// the username field as the user types (that's our account key — reliable, and
+// login itself is the proof of membership). When the login form is gone, the
+// user has reached their account = verified.
+const HOOK_JS = `(function(){
   function post(o){try{window.ReactNativeWebView.postMessage(JSON.stringify(o));}catch(e){}}
   try{
-    var loggedIn = !document.getElementById('loginform');
-    var path = (location.pathname||'');
-    if(!loggedIn){ post({type:'status',loggedIn:false}); return; }
-    if(path.toLowerCase().indexOf('idcard')>=0){
-      var front=document.getElementById('lblNameIDCardFront1');
-      var back=document.getElementById('lblInfoIDCardBack1');
-      if(front){
-        var parts=(front.innerHTML||'').split(/<br\\s*\\/?>/i).map(function(s){return s.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').trim();}).filter(function(s){return s.length;});
-        var enroll='';
-        if(back){ var m=(back.innerText||back.textContent||'').match(/Enrollment\\s*No\\.?\\s*:?\\s*([A-Za-z0-9]+)/i); if(m){enroll=m[1];} }
-        post({type:'profile', full_name:(parts[0]||''), department:(parts[1]||''), batch:(parts[2]||''), amizone_id:enroll});
-      } else {
-        post({type:'no_fields', sample:((document.body&&document.body.innerText)||'').slice(0,500)});
+    if(document.getElementById('loginform')){
+      var u=document.getElementById('_UserName');
+      if(u && !u.__meau){
+        u.__meau=true;
+        ['input','change','blur'].forEach(function(ev){
+          u.addEventListener(ev,function(){ var v=(u.value||'').trim(); if(v){ post({type:'id',v:v}); } });
+        });
       }
+      post({type:'status',loggedIn:false});
     } else {
       post({type:'status',loggedIn:true});
     }
@@ -41,20 +37,24 @@ export default function AmizoneWebview() {
   const refreshProfile = useSession((s) => s.refreshProfile);
 
   const webRef = useRef<WebView>(null);
-  const navigatedToIdCard = useRef(false);
+  const amizoneId = useRef('');
   const submitted = useRef(false);
 
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submitProfile(p: ScrapedProfile) {
+  async function completeVerification() {
     if (submitted.current) return;
+    if (!amizoneId.current) {
+      setError("Couldn't read your Amizone ID. Tap Start over and log in again.");
+      return;
+    }
     submitted.current = true;
     setWorking(true);
     setError(null);
     try {
       const token = await ensureSession();
-      await verifyWebview({ token, profile: p });
+      await verifyWebview({ token, profile: { amizone_id: amizoneId.current } });
       await refreshProfile();
       router.replace('/(onboarding)/complete-profile');
     } catch (e) {
@@ -71,39 +71,18 @@ export default function AmizoneWebview() {
     } catch {
       return;
     }
-
-    if (msg.type === 'status' && msg.loggedIn === true && !navigatedToIdCard.current) {
-      // Logged in — jump to the ID card page to read the profile.
-      navigatedToIdCard.current = true;
-      webRef.current?.injectJavaScript("window.location.href='/IDCard';true;");
+    if (msg.type === 'id') {
+      const v = String(msg.v ?? '').trim();
+      if (v) amizoneId.current = v;
       return;
     }
-
-    if (msg.type === 'profile') {
-      const amizone_id = String(msg.amizone_id ?? '').trim();
-      const full_name = String(msg.full_name ?? '').trim();
-      if (!amizone_id || !full_name) {
-        setError("Couldn't read your Amizone profile. Try again.");
-        navigatedToIdCard.current = false;
-        return;
-      }
-      submitProfile({
-        amizone_id,
-        full_name,
-        department: String(msg.department ?? '').trim() || null,
-        batch: String(msg.batch ?? '').trim() || null,
-      });
-      return;
-    }
-
-    if (msg.type === 'no_fields') {
-      setError("Reached your Amizone account but couldn't find the profile fields. Tap back and try again.");
+    if (msg.type === 'status' && msg.loggedIn === true) {
+      completeVerification();
     }
   }
 
   function retry() {
     setError(null);
-    navigatedToIdCard.current = false;
     submitted.current = false;
     webRef.current?.injectJavaScript(`window.location.href='${AMIZONE_URL}';true;`);
   }
@@ -125,7 +104,7 @@ export default function AmizoneWebview() {
         ref={webRef}
         source={{ uri: AMIZONE_URL }}
         onMessage={onMessage}
-        onLoadEnd={() => webRef.current?.injectJavaScript(SCRAPE_JS)}
+        onLoadEnd={() => webRef.current?.injectJavaScript(HOOK_JS)}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled
@@ -137,7 +116,7 @@ export default function AmizoneWebview() {
       {working ? (
         <View className="absolute inset-0 bg-bg/90 items-center justify-center">
           <ActivityIndicator color={colors.accent} />
-          <Text className="text-muted text-sm mt-3">Reading your Amizone profile…</Text>
+          <Text className="text-muted text-sm mt-3">Verifying…</Text>
         </View>
       ) : null}
 

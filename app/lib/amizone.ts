@@ -39,19 +39,19 @@ export async function verifyAmizone(params: {
   throw new Error('Verification is unavailable right now. Try again in a moment.');
 }
 
-export type ScrapedProfile = {
+export type WebviewProfile = {
   amizone_id: string;
-  full_name: string;
-  batch: string | null;
-  department: string | null;
+  full_name?: string;
+  batch?: string | null;
+  department?: string | null;
 };
 
-// Sends the profile the app scraped from a real in-WebView Amizone login to the
-// server to create/link the verified row. Client-attested (see /verify-webview
-// on the server). Throws a user-facing message on failure.
+// Confirms a real in-WebView Amizone login to the server, which creates/links
+// the verified row keyed by the Amizone login id. Client-attested (see
+// /verify-webview on the server). Throws a user-facing message on failure.
 export async function verifyWebview(params: {
   token: string;
-  profile: ScrapedProfile;
+  profile: WebviewProfile;
 }): Promise<void> {
   if (!BASE) throw new Error('Verification service is not configured.');
 
@@ -72,8 +72,8 @@ export async function verifyWebview(params: {
   if (res.ok) return;
 
   const body = (await res.json().catch(() => ({}))) as { error?: string };
-  if (res.status === 400 && body.error === 'invalid_profile') {
-    throw new Error("Couldn't read your Amizone profile. Try logging in again.");
+  if (res.status === 400 && body.error === 'invalid_amizone_id') {
+    throw new Error("Couldn't read your Amizone ID. Try logging in again.");
   }
   if (res.status === 401) {
     throw new Error('Your session expired. Please try again.');

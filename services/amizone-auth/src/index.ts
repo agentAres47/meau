@@ -131,13 +131,16 @@ app.post('/verify', verifyLimiter, async (req, res) => {
   return res.json({ verified: true, profile });
 });
 
-// Client-attested verification: the app drove a real Amizone login inside a
-// WebView (human solved Cloudflare Turnstile — automation is blocked, see
-// AMIZONE-CLOUDFLARE-REALITY.md) and scraped the /IDCard profile. We trust that
-// scrape here — the server can't independently re-verify because the Amizone
-// session cookie is HttpOnly (server-side re-verification needs a dev build with
-// native cookie access; documented as v2 hardening). Row creation still happens
-// server-side so RLS/ownership stay consistent.
+// Amizone login as the verification gate: the app drove a real Amizone login
+// inside a WebView (human solved Cloudflare Turnstile — automation is blocked,
+// see AMIZONE-CLOUDFLARE-REALITY.md). Reaching the logged-in area proves the
+// user is a real Amity member. We identify the account by the Amizone login id
+// they typed (unique per user; captured from the login field, NOT scraped from a
+// profile page — that's unreliable, e.g. students with no issued ID card). Name
+// and the rest are collected in complete-profile. Row creation stays server-side
+// so RLS/ownership hold. Client-attested (server can't re-verify: the Amizone
+// session cookie is HttpOnly — v2 hardening needs a dev build with native cookie
+// access).
 app.post('/verify-webview', verifyLimiter, async (req, res) => {
   const body = (req.body ?? {}) as {
     amizone_id?: string;
@@ -148,10 +151,10 @@ app.post('/verify-webview', verifyLimiter, async (req, res) => {
   const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
 
   const amizoneId = (body.amizone_id ?? '').trim();
-  const fullName = (body.full_name ?? '').trim();
-  // Validate at this trust boundary: enrollment ids are alphanumeric; name non-empty.
-  if (!/^[A-Za-z0-9]{4,20}$/.test(amizoneId) || fullName.length < 2 || fullName.length > 100) {
-    return res.status(400).json({ error: 'invalid_profile' });
+  // Validate at this trust boundary. The login id is the only required field;
+  // name/batch are optional (filled later or by a future ID-card scan).
+  if (!/^[A-Za-z0-9._@-]{3,40}$/.test(amizoneId)) {
+    return res.status(400).json({ error: 'invalid_amizone_id' });
   }
   if (!token) {
     return res.status(401).json({ error: 'missing_session' });
@@ -162,10 +165,11 @@ app.post('/verify-webview', verifyLimiter, async (req, res) => {
     return res.status(401).json({ error: 'invalid_session' });
   }
 
+  const fullName = (body.full_name ?? '').trim();
   const linkErr = await linkProfile(authUserId, {
     amizone_id: amizoneId,
-    full_name: fullName,
-    role: 'student', // IDCard doesn't expose role; user confirms in complete-profile
+    full_name: fullName.length >= 2 && fullName.length <= 100 ? fullName : '',
+    role: 'student', // user confirms in complete-profile
     batch: (body.batch ?? null)?.toString().slice(0, 100) || null,
     department: (body.department ?? null)?.toString().slice(0, 100) || null,
   });
