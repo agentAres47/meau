@@ -126,6 +126,7 @@ export default function MatchChat() {
           ref={listRef}
           data={messages}
           keyExtractor={(m) => m.id}
+          className="flex-1"
           contentContainerClassName="px-4 py-4 gap-2"
           onContentSizeChange={scrollToEnd}
           ListHeaderComponent={
@@ -144,15 +145,16 @@ export default function MatchChat() {
         {/* Quick-reply chips */}
         <ScrollView
           horizontal
+          className="max-h-12 flex-none"
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-4 gap-2 pb-2"
+          contentContainerClassName="px-4 gap-2 pb-2 items-center"
           keyboardShouldPersistTaps="handled"
         >
           {QUICK_PROMPTS.map((q) => (
             <Pressable
               key={q}
               onPress={() => send(q, 'structured')}
-              className="rounded-full px-3.5 py-2 bg-surface2 border border-surface2 active:scale-[0.97]"
+              className="rounded-full px-3.5 py-2 bg-surface2 border border-surface2 active:scale-[0.97] items-center justify-center"
             >
               <Text className="text-text text-sm">{q}</Text>
             </Pressable>
