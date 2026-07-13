@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Send, ShieldCheck } from 'lucide-react-native';
+import { ChevronLeft, Send, ShieldCheck, Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
 import { useSession } from '../../store/session';
@@ -26,6 +26,7 @@ import {
   type ChatMeta,
   type Message,
 } from '../../lib/chat';
+import { getAutopoolChatMeta, autopoolSummary, type AutopoolChatMeta } from '../../lib/autopool';
 
 const QUICK_PROMPTS = [
   'What time exactly?',
@@ -38,6 +39,7 @@ export default function MatchChat() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const me = useSession((s) => s.profile);
   const [meta, setMeta] = useState<ChatMeta | null>(null);
+  const [autopool, setAutopool] = useState<AutopoolChatMeta | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,14 @@ export default function MatchChat() {
         const m = await getChatMeta(matchId);
         if (!alive) return;
         setMeta(m);
-        if (m) await ensureSystemMessage(matchId, me.id, matchSummary(m));
+        if (m?.kind === 'autopool') {
+          const a = await getAutopoolChatMeta(matchId, me.id);
+          if (!alive) return;
+          setAutopool(a);
+          if (a) await ensureSystemMessage(matchId, me.id, autopoolSummary(a));
+        } else if (m) {
+          await ensureSystemMessage(matchId, me.id, matchSummary(m));
+        }
         const history = await getMessages(matchId);
         if (!alive) return;
         setMessages(history);
@@ -106,16 +115,34 @@ export default function MatchChat() {
         <Pressable onPress={() => router.back()} accessibilityLabel="Back" className="active:opacity-70 -ml-1">
           <ChevronLeft color={colors.text} size={26} />
         </Pressable>
-        <Avatar name={meta?.other_name || 'Rider'} uri={meta?.other_photo} size={40} />
-        <View className="flex-1">
-          <View className="flex-row items-center gap-1.5">
-            <Text className="text-text text-base font-semibold" numberOfLines={1}>
-              {meta?.other_name || (meta?.other_role === 'driver' ? 'Your driver' : 'Your rider')}
-            </Text>
-            <ShieldCheck color={colors.success} size={14} />
-          </View>
-          <Text className="text-muted text-xs capitalize">{meta?.other_role ?? 'Amity member'}</Text>
-        </View>
+        {meta?.kind === 'autopool' ? (
+          <>
+            <View className="w-10 h-10 rounded-full bg-surface2 items-center justify-center">
+              <Users color={colors.accent} size={20} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-text text-base font-semibold" numberOfLines={1}>
+                {autopool?.routeLabel ?? 'Auto Pool'}
+              </Text>
+              <Text className="text-muted text-xs">
+                {autopool ? `${autopool.poolSize} pooling` : 'Auto Pool'}
+              </Text>
+            </View>
+          </>
+        ) : (
+          <>
+            <Avatar name={meta?.other_name || 'Rider'} uri={meta?.other_photo} size={40} />
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-text text-base font-semibold" numberOfLines={1}>
+                  {meta?.other_name || (meta?.other_role === 'driver' ? 'Your driver' : 'Your rider')}
+                </Text>
+                <ShieldCheck color={colors.success} size={14} />
+              </View>
+              <Text className="text-muted text-xs capitalize">{meta?.other_role ?? 'Amity member'}</Text>
+            </View>
+          </>
+        )}
       </View>
 
       <KeyboardAvoidingView

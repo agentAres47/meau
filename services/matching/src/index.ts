@@ -101,4 +101,12 @@ setInterval(() => {
   );
 }, 60_000);
 
+// Group waiting auto-pool sessions into pools (specs/07-AUTO-POOL.md).
+setInterval(() => {
+  admin.rpc('run_autopool_matching').then(
+    () => {},
+    () => {}
+  );
+}, 12_000);
+
 app.listen(PORT, () => console.log(`matching listening on :${PORT}`));
