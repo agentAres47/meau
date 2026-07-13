@@ -12,7 +12,7 @@ import { MapPreview } from '../../components/MapPreview';
 import { EmptyState } from '../../components/EmptyState';
 import { useSearch } from '../../store/search';
 import { decodeRoute, type Place } from '../../lib/maps';
-import { requestDrivers, type Match } from '../../lib/passenger';
+import { requestDrivers, cancelRequest, type Match } from '../../lib/passenger';
 import { formatDepart } from '../../lib/format';
 
 export default function SearchResults() {
@@ -32,11 +32,21 @@ export default function SearchResults() {
     }
   }
 
+  // Leaving without requesting any driver would otherwise strand the
+  // ride_requests row in 'searching' forever — the passenger tab's active-
+  // request gate would then redirect straight back into "Finding your
+  // ride..." with no way out. Cancel it first, then replace (not back()) so
+  // this is safe even if we got here via a Redirect that ate history.
+  async function backToSearch() {
+    if (requestId) await cancelRequest(requestId);
+    router.replace('/(tabs)/passenger');
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
       <View className="px-4 pt-2 pb-2 flex-row items-center">
         <Pressable
-          onPress={() => router.back()}
+          onPress={backToSearch}
           accessibilityRole="button"
           className="w-10 h-10 -ml-2 items-center justify-center active:opacity-60"
         >
@@ -54,7 +64,7 @@ export default function SearchResults() {
             title="No rides your way right now"
             description="No live rides match your route and time. Try a wider time, or check back soon."
             actionLabel="Back to search"
-            onAction={() => router.back()}
+            onAction={backToSearch}
           />
         </View>
       ) : (

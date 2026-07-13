@@ -47,9 +47,12 @@ export default function Waiting() {
     return subscribeRequest(rid, refetch);
   }, [rid, refetch]);
 
+  // router.replace, not back() — this screen is commonly reached via a
+  // Redirect (from the passenger tab's active-request gate), which replaces
+  // history rather than pushing, so back() here can have nowhere to go.
   async function onCancel() {
     if (rid) await cancelRequest(rid);
-    router.back();
+    router.replace('/(tabs)/passenger');
   }
 
   return (
@@ -70,7 +73,12 @@ export default function Waiting() {
               className="w-full"
             />
           ) : null}
-          <Button label="Done" variant="secondary" onPress={() => router.back()} className="w-full" />
+          <Button
+            label="Done"
+            variant="secondary"
+            onPress={() => router.replace('/(tabs)/passenger')}
+            className="w-full"
+          />
         </View>
       ) : (
         <View className="items-center gap-6">
