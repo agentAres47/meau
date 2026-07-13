@@ -1,24 +1,98 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { router, useFocusEffect, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Circle, MapPin, Clock } from 'lucide-react-native';
+import { Circle, MapPin, Clock, CheckCircle2 } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
+import { Avatar } from '../../components/Avatar';
 import { PlaceRow } from '../../components/PlaceRow';
 import { PriceSlider } from '../../components/PriceSlider';
 import { useSession } from '../../store/session';
 import { useRideDraft } from '../../store/rideDraft';
 import { useSearch } from '../../store/search';
 import { getRoute, suggestedPrice } from '../../lib/maps';
-import { createRideRequest, matchRides } from '../../lib/passenger';
+import {
+  createRideRequest,
+  matchRides,
+  getActiveRequest,
+  endRide,
+  getDriverProfile,
+  type ActiveRequest,
+  type MatchedDriver,
+} from '../../lib/passenger';
 import { formatDepart } from '../../lib/format';
 
 export default function Passenger() {
+  const profile = useSession((s) => s.profile);
+  const [active, setActive] = useState<ActiveRequest | null | undefined>(undefined);
+  const [driver, setDriver] = useState<MatchedDriver | null>(null);
+
+  const loadActive = useCallback(async () => {
+    if (!profile) return;
+    const a = await getActiveRequest(profile.id);
+    setActive(a);
+    if (a?.status === 'matched' && a.matched_driver_id) {
+      setDriver(await getDriverProfile(a.matched_driver_id));
+    }
+  }, [profile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadActive();
+    }, [loadActive])
+  );
+
+  if (active === undefined) {
+    return (
+      <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+        <ActivityIndicator color={colors.accent} />
+      </SafeAreaView>
+    );
+  }
+
+  // Mid-search → waiting screen (also gates re-requesting).
+  if (active?.status === 'searching') {
+    return <Redirect href={`/ride/waiting?rid=${active.id}`} />;
+  }
+
+  if (active?.status === 'matched') {
+    return (
+      <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+        <ScreenHeader title={(profile?.full_name ?? 'Rider').split(' ')[0]} subtitle="Your ride" />
+        <View className="flex-1 justify-center px-6">
+          <Card className="items-center gap-4 py-8">
+            <CheckCircle2 color={colors.success} size={40} />
+            <Text className="text-text text-lg font-bold">You're matched</Text>
+            <Avatar name={driver?.full_name || 'Driver'} uri={driver?.photo_url} size={64} />
+            <Text className="text-text text-base font-semibold">{driver?.full_name || 'Your driver'}</Text>
+            <Text className="text-muted text-sm text-center">
+              Chat opens in the next update. End the ride to search again.
+            </Text>
+            <Button
+              label="End ride"
+              variant="secondary"
+              className="w-full"
+              onPress={async () => {
+                if (active) await endRide(active.id);
+                setActive(null);
+                setDriver(null);
+              }}
+            />
+          </Card>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return <SearchForm />;
+}
+
+function SearchForm() {
   const profile = useSession((s) => s.profile);
   const { origin: pickup, dest: drop, reset } = useRideDraft();
   const setResults = useSearch((s) => s.setResults);
@@ -29,15 +103,19 @@ export default function Passenger() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      reset();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
-  // Suggest a fair offer from the route distance once both ends are set.
-  useEffect(() => {
-    if (pickup && drop) getRoute(pickup, drop).then((r) => setOffer(suggestedPrice(r.distanceKm)));
-  }, [pickup, drop]);
+  useFocusEffect(
+    useCallback(() => {
+      if (pickup && drop) getRoute(pickup, drop).then((r) => setOffer(suggestedPrice(r.distanceKm)));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pickup, drop])
+  );
 
   function pickWhen() {
     DateTimePickerAndroid.open({
@@ -75,7 +153,7 @@ export default function Passenger() {
         offeredPrice: offer,
       });
       const matches = await matchRides(requestId);
-      setResults({ requestId, pickup, drop, matches });
+      setResults({ requestId, pickup, drop, offer, matches });
       router.push('/ride/search-results');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
@@ -124,7 +202,8 @@ export default function Passenger() {
         </View>
 
         <Card>
-          <Text className="text-muted text-sm mb-2">Your offer per seat</Text>
+          <Text className="text-muted text-sm mb-1">Your offer per seat</Text>
+          <Text className="text-muted text-xs mb-2">What you'll pay for your part of the trip.</Text>
           <PriceSlider value={offer} onChange={setOffer} />
         </Card>
 

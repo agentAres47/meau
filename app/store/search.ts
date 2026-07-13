@@ -7,8 +7,15 @@ type SearchState = {
   requestId: string | null;
   pickup: Place | null;
   drop: Place | null;
+  offer: number;
   matches: Match[];
-  setResults: (r: { requestId: string; pickup: Place; drop: Place; matches: Match[] }) => void;
+  setResults: (r: {
+    requestId: string;
+    pickup: Place;
+    drop: Place;
+    offer: number;
+    matches: Match[];
+  }) => void;
   reset: () => void;
 };
 
@@ -16,7 +23,8 @@ export const useSearch = create<SearchState>((set) => ({
   requestId: null,
   pickup: null,
   drop: null,
+  offer: 0,
   matches: [],
   setResults: (r) => set(r),
-  reset: () => set({ requestId: null, pickup: null, drop: null, matches: [] }),
+  reset: () => set({ requestId: null, pickup: null, drop: null, offer: 0, matches: [] }),
 }));

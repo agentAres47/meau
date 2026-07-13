@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, FlatList } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, MapPin, LocateFixed } from 'lucide-react-native';
+import * as Location from 'expo-location';
+import { X, MapPin, LocateFixed, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Input } from '../../components/Input';
 import { useRideDraft } from '../../store/rideDraft';
@@ -11,7 +12,9 @@ import {
   placeDetails,
   currentPlace,
   type Suggestion,
+  type Place,
 } from '../../lib/maps';
+import { getRecent, saveRecent } from '../../lib/recent';
 
 export default function LocationPicker() {
   const { field } = useLocalSearchParams<{ field: 'origin' | 'dest' }>();
@@ -19,40 +22,52 @@ export default function LocationPicker() {
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [recent, setRecent] = useState<Place[]>([]);
   const [busy, setBusy] = useState(false);
+  const [bias, setBias] = useState<{ latitude: number; longitude: number } | undefined>();
 
-  // Debounced autocomplete.
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 3) {
+    getRecent().then(setRecent);
+    // Silent location for search bias (no prompt; null if not granted).
+    Location.getLastKnownPositionAsync()
+      .then((p) => p && setBias({ latitude: p.coords.latitude, longitude: p.coords.longitude }))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (query.trim().length < 3) {
       setSuggestions([]);
       return;
     }
     const t = setTimeout(() => {
-      placesAutocomplete(q).then(setSuggestions);
+      placesAutocomplete(query, bias).then(setSuggestions);
     }, 300);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, bias]);
+
+  async function pick(place: Place | null) {
+    if (place && field) {
+      await saveRecent(place);
+      setPlace(field, place);
+      router.back();
+    }
+  }
 
   async function choose(placeId: string) {
     setBusy(true);
     const place = await placeDetails(placeId);
     setBusy(false);
-    if (place && field) {
-      setPlace(field, place);
-      router.back();
-    }
+    pick(place);
   }
 
   async function useCurrent() {
     setBusy(true);
     const place = await currentPlace();
     setBusy(false);
-    if (place && field) {
-      setPlace(field, place);
-      router.back();
-    }
+    pick(place);
   }
+
+  const showRecent = query.trim().length < 3 && recent.length > 0;
 
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
@@ -70,12 +85,7 @@ export default function LocationPicker() {
       </View>
 
       <View className="px-6 pt-2 gap-3">
-        <Input
-          placeholder="Search a place"
-          autoFocus
-          value={query}
-          onChangeText={setQuery}
-        />
+        <Input placeholder="Search a place" autoFocus value={query} onChangeText={setQuery} />
         <Pressable
           onPress={useCurrent}
           accessibilityRole="button"
@@ -89,6 +99,23 @@ export default function LocationPicker() {
       {busy ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : showRecent ? (
+        <View className="px-6 pt-2 flex-1">
+          <Text className="text-muted text-xs mb-1">Recent</Text>
+          {recent.map((p) => (
+            <Pressable
+              key={p.label}
+              onPress={() => pick(p)}
+              accessibilityRole="button"
+              className="flex-row items-center gap-3 py-3 border-b border-surface2 active:opacity-60"
+            >
+              <Clock color={colors.muted} size={18} />
+              <Text className="text-text text-sm flex-1" numberOfLines={1}>
+                {p.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       ) : (
         <FlatList

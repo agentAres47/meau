@@ -16,7 +16,7 @@ import { requestDrivers, type Match } from '../../lib/passenger';
 import { formatDepart } from '../../lib/format';
 
 export default function SearchResults() {
-  const { requestId, pickup, drop, matches } = useSearch();
+  const { requestId, pickup, drop, offer, matches } = useSearch();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function request(tokenId: string) {
@@ -65,6 +65,7 @@ export default function SearchResults() {
               match={m}
               pickup={pickup}
               drop={drop}
+              offer={offer}
               busy={busy === m.token_id}
               onRequest={() => request(m.token_id)}
             />
@@ -79,12 +80,14 @@ function MatchCard({
   match,
   pickup,
   drop,
+  offer,
   busy,
   onRequest,
 }: {
   match: Match;
   pickup: Place | null;
   drop: Place | null;
+  offer: number;
   busy: boolean;
   onRequest: () => void;
 }) {
@@ -116,7 +119,10 @@ function MatchCard({
             </Text>
           ) : null}
         </View>
-        <Text className="text-text text-base font-bold tabular-nums">₹{match.price_per_seat}</Text>
+        <View className="items-end">
+          <Text className="text-text text-base font-bold tabular-nums">₹{offer}</Text>
+          <Text className="text-muted text-[10px]">you offer</Text>
+        </View>
       </View>
 
       <MapPreview region={region} path={path} markers={markers} height={130} />
@@ -124,7 +130,7 @@ function MatchCard({
       <View className="flex-row items-center gap-2">
         <Route color={colors.success} size={14} />
         <Text className="text-muted text-xs flex-1">
-          On your way · {match.detour_m} m detour
+          On your way · {match.detour_m} m detour · driver asks ₹{match.price_per_seat} full
         </Text>
         <Badge label={`${match.seats_left} seat${match.seats_left > 1 ? 's' : ''}`} tone="muted" />
       </View>

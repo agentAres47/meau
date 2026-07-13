@@ -130,3 +130,29 @@ export async function getMatchId(requestId: string): Promise<string | null> {
 export async function cancelRequest(requestId: string): Promise<void> {
   await supabase.rpc('cancel_request', { p_request_id: requestId });
 }
+
+export type ActiveRequest = {
+  id: string;
+  status: 'searching' | 'matched';
+  matched_driver_id: string | null;
+};
+
+// The passenger's current live request, if any (used to gate re-requesting).
+export async function getActiveRequest(passengerId: string): Promise<ActiveRequest | null> {
+  const { data } = await supabase
+    .from('ride_requests')
+    .select('id, status, matched_driver_id')
+    .eq('passenger_id', passengerId)
+    .in('status', ['searching', 'matched'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as ActiveRequest) ?? null;
+}
+
+// End a matched ride so the passenger can search again.
+// ponytail: marks the request 'cancelled'; a real ride-completion lifecycle
+// (and restoring the driver's seat) comes with the ride states work later.
+export async function endRide(requestId: string): Promise<void> {
+  await supabase.from('ride_requests').update({ status: 'cancelled' }).eq('id', requestId);
+}

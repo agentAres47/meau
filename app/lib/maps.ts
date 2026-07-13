@@ -7,10 +7,15 @@ const BASE = 'https://maps.googleapis.com/maps/api';
 export type Place = { label: string; latitude: number; longitude: number };
 export type Suggestion = { placeId: string; label: string };
 
-// Places Autocomplete (REST — works in Expo Go). Biased to India.
-export async function placesAutocomplete(query: string): Promise<Suggestion[]> {
+// Places Autocomplete (REST — works in Expo Go). Biased to India, and to the
+// user's location when provided (so "Amity" surfaces the nearest campus first).
+export async function placesAutocomplete(
+  query: string,
+  bias?: { latitude: number; longitude: number }
+): Promise<Suggestion[]> {
   if (!KEY || query.trim().length < 3) return [];
-  const url = `${BASE}/place/autocomplete/json?input=${encodeURIComponent(query)}&components=country:in&key=${KEY}`;
+  const loc = bias ? `&location=${bias.latitude},${bias.longitude}&radius=30000` : '';
+  const url = `${BASE}/place/autocomplete/json?input=${encodeURIComponent(query)}&components=country:in${loc}&key=${KEY}`;
   const res = await fetch(url).then((r) => r.json());
   if (res.status !== 'OK') return [];
   return (res.predictions ?? []).map((p: any) => ({ placeId: p.place_id, label: p.description }));
