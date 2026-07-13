@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,35 +9,25 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { Search, CheckCircle2 } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
-import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
-import {
-  getRequestState,
-  subscribeRequest,
-  getDriverProfile,
-  getMatchId,
-  cancelRequest,
-  type MatchedDriver,
-} from '../../lib/passenger';
+import { getRequestState, subscribeRequest, getMatchId, cancelRequest } from '../../lib/passenger';
 
 export default function Waiting() {
   const { rid } = useLocalSearchParams<{ rid: string }>();
-  const [matched, setMatched] = useState(false);
-  const [driver, setDriver] = useState<MatchedDriver | null>(null);
-  const [matchId, setMatchId] = useState<string | null>(null);
   const done = useRef(false);
 
+  // On match, jump straight to the shared matched-ride screen (same one the
+  // driver sees) instead of showing our own "Matched!" card here.
   const refetch = useCallback(async () => {
     if (!rid) return;
     const s = await getRequestState(rid);
     if (!s) return;
     if (s.status === 'matched' && s.matched_driver_id && !done.current) {
       done.current = true;
-      setMatched(true);
-      setDriver(await getDriverProfile(s.matched_driver_id));
-      setMatchId(await getMatchId(rid));
+      const matchId = await getMatchId(rid);
+      if (matchId) router.replace(`/ride/matched/${matchId}`);
     }
   }, [rid]);
 
@@ -57,39 +47,14 @@ export default function Waiting() {
 
   return (
     <SafeAreaView className="flex-1 bg-bg items-center justify-center px-6" edges={['top', 'bottom']}>
-      {matched ? (
-        <View className="items-center gap-5 w-full">
-          <CheckCircle2 color={colors.success} size={56} />
-          <Text className="text-text text-xl font-bold">Matched!</Text>
-          <View className="items-center gap-2">
-            <Avatar name={driver?.full_name || 'Driver'} uri={driver?.photo_url} size={64} />
-            <Text className="text-text text-base font-semibold">{driver?.full_name || 'Your driver'}</Text>
-            <Text className="text-muted text-sm">is picking you up.</Text>
-          </View>
-          {matchId ? (
-            <Button
-              label="Message driver"
-              onPress={() => router.replace(`/match/${matchId}`)}
-              className="w-full"
-            />
-          ) : null}
-          <Button
-            label="Done"
-            variant="secondary"
-            onPress={() => router.replace('/(tabs)/passenger')}
-            className="w-full"
-          />
+      <View className="items-center gap-6">
+        <Radar />
+        <View className="items-center gap-1">
+          <Text className="text-text text-lg font-bold">Finding your ride…</Text>
+          <Text className="text-muted text-sm">Waiting for a driver to accept.</Text>
         </View>
-      ) : (
-        <View className="items-center gap-6">
-          <Radar />
-          <View className="items-center gap-1">
-            <Text className="text-text text-lg font-bold">Finding your ride…</Text>
-            <Text className="text-muted text-sm">Waiting for a driver to accept.</Text>
-          </View>
-          <Button label="Cancel" variant="ghost" onPress={onCancel} />
-        </View>
-      )}
+        <Button label="Cancel" variant="ghost" onPress={onCancel} />
+      </View>
     </SafeAreaView>
   );
 }

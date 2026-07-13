@@ -49,3 +49,18 @@ export async function acceptRequest(params: {
 export async function declineTarget(targetId: string): Promise<void> {
   await supabase.from('request_targets').update({ state: 'declined' }).eq('id', targetId);
 }
+
+export type MatchedPassenger = {
+  match_id: string;
+  request_id: string;
+  passenger_name: string | null;
+  passenger_photo: string | null;
+  pickup_label: string;
+  drop_label: string;
+  offered_price: number;
+};
+
+export async function getMatchedPassengers(tokenId: string): Promise<MatchedPassenger[]> {
+  const { data } = await supabase.rpc('driver_matched_passengers', { p_token_id: tokenId });
+  return (data as MatchedPassenger[]) ?? [];
+}

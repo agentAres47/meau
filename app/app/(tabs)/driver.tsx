@@ -11,9 +11,11 @@ import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { MapPreview } from '../../components/MapPreview';
 import { IncomingRequests } from '../../components/IncomingRequests';
+import { MatchedPassengers } from '../../components/MatchedPassengers';
 import { useSession } from '../../store/session';
 import { getDriverStatus, type DriverStatus } from '../../lib/driver';
 import { getMyActiveToken, cancelRideToken, type RideToken } from '../../lib/rides';
+import { getMatchedPassengers, type MatchedPassenger } from '../../lib/requests';
 import { decodeRoute } from '../../lib/maps';
 import { formatDepart } from '../../lib/format';
 
@@ -22,6 +24,7 @@ export default function Driver() {
   const refreshProfile = useSession((s) => s.refreshProfile);
   const [status, setStatus] = useState<DriverStatus | null>(null);
   const [token, setToken] = useState<RideToken | null>(null);
+  const [matched, setMatched] = useState<MatchedPassenger[]>([]);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -33,6 +36,7 @@ export default function Driver() {
     ]);
     setStatus(d.status);
     setToken(t);
+    setMatched(t ? await getMatchedPassengers(t.id) : []);
   }, []);
 
   useFocusEffect(
@@ -83,6 +87,7 @@ export default function Driver() {
       ) : token ? (
         <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-4">
           <IncomingRequests driverId={profile.id} onMatched={refresh} />
+          <MatchedPassengers passengers={matched} />
           <ActiveTokenCard token={token} onCancel={onCancel} busy={busy} />
         </ScrollView>
       ) : (

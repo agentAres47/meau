@@ -107,17 +107,6 @@ export function subscribeRequest(requestId: string, onChange: () => void): () =>
   };
 }
 
-export type MatchedDriver = { full_name: string; photo_url: string | null };
-
-export async function getDriverProfile(driverId: string): Promise<MatchedDriver | null> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('full_name, photo_url')
-    .eq('id', driverId)
-    .maybeSingle();
-  return (data as MatchedDriver) ?? null;
-}
-
 export async function getMatchId(requestId: string): Promise<string | null> {
   const { data } = await supabase
     .from('matches')
@@ -148,16 +137,4 @@ export async function getActiveRequest(passengerId: string): Promise<ActiveReque
     .limit(1)
     .maybeSingle();
   return (data as ActiveRequest) ?? null;
-}
-
-// End the passenger's ride(s) so they can search again. Cancels ALL of their
-// active requests (searching + matched) — robust against any lingering ones.
-// ponytail: a real ride-completion lifecycle (and restoring the driver's seat)
-// comes with the ride states work later.
-export async function endRide(passengerId: string): Promise<void> {
-  await supabase
-    .from('ride_requests')
-    .update({ status: 'cancelled' })
-    .eq('passenger_id', passengerId)
-    .in('status', ['searching', 'matched']);
 }

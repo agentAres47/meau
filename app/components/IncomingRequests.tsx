@@ -36,7 +36,7 @@ export function IncomingRequests({ driverId, onMatched }: { driverId: string; on
     try {
       const matchId = await acceptRequest({ requestId: i.request_id, tokenId: i.token_id, driverId });
       onMatched();
-      router.push(`/match/${matchId}`);
+      router.push(`/ride/matched/${matchId}`);
     } catch {
       setNote('That request was already taken.');
     } finally {

@@ -3,43 +3,31 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-nati
 import { router, useFocusEffect, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Circle, MapPin, Clock, CheckCircle2 } from 'lucide-react-native';
+import { Circle, MapPin, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
-import { Avatar } from '../../components/Avatar';
 import { PlaceRow } from '../../components/PlaceRow';
 import { PriceSlider } from '../../components/PriceSlider';
 import { useSession } from '../../store/session';
 import { useRideDraft } from '../../store/rideDraft';
 import { useSearch } from '../../store/search';
 import { getRoute, suggestedPrice } from '../../lib/maps';
-import {
-  createRideRequest,
-  matchRides,
-  getActiveRequest,
-  endRide,
-  getDriverProfile,
-  getMatchId,
-  type ActiveRequest,
-  type MatchedDriver,
-} from '../../lib/passenger';
+import { createRideRequest, matchRides, getActiveRequest, getMatchId, type ActiveRequest } from '../../lib/passenger';
 import { formatDepart } from '../../lib/format';
 
 export default function Passenger() {
   const profile = useSession((s) => s.profile);
   const [active, setActive] = useState<ActiveRequest | null | undefined>(undefined);
-  const [driver, setDriver] = useState<MatchedDriver | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
 
   const loadActive = useCallback(async () => {
     if (!profile) return;
     const a = await getActiveRequest(profile.id);
     setActive(a);
-    if (a?.status === 'matched' && a.matched_driver_id) {
-      setDriver(await getDriverProfile(a.matched_driver_id));
+    if (a?.status === 'matched') {
       setMatchId(await getMatchId(a.id));
     }
   }, [profile]);
@@ -63,41 +51,16 @@ export default function Passenger() {
     return <Redirect href={`/ride/waiting?rid=${active.id}`} />;
   }
 
+  // Matched → the shared matched-ride screen (same one the driver sees).
   if (active?.status === 'matched') {
-    return (
-      <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
-        <ScreenHeader title={(profile?.full_name ?? 'Rider').split(' ')[0]} subtitle="Your ride" />
-        <View className="flex-1 justify-center px-6">
-          <Card className="items-center gap-4 py-8">
-            <CheckCircle2 color={colors.success} size={40} />
-            <Text className="text-text text-lg font-bold">You're matched</Text>
-            <Avatar name={driver?.full_name || 'Driver'} uri={driver?.photo_url} size={64} />
-            <Text className="text-text text-base font-semibold">{driver?.full_name || 'Your driver'}</Text>
-            <Text className="text-muted text-sm text-center">
-              Message your driver to sort out the pickup. End the ride to search again.
-            </Text>
-            {matchId ? (
-              <Button
-                label="Open chat"
-                className="w-full"
-                onPress={() => router.push(`/match/${matchId}`)}
-              />
-            ) : null}
-            <Button
-              label="End ride"
-              variant="secondary"
-              className="w-full"
-              onPress={async () => {
-                if (profile) await endRide(profile.id);
-                setActive(null);
-                setDriver(null);
-                setMatchId(null);
-              }}
-            />
-          </Card>
-        </View>
-      </SafeAreaView>
-    );
+    if (!matchId) {
+      return (
+        <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+          <ActivityIndicator color={colors.accent} />
+        </SafeAreaView>
+      );
+    }
+    return <Redirect href={`/ride/matched/${matchId}`} />;
   }
 
   return <SearchForm />;
