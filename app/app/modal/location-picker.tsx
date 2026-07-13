@@ -24,6 +24,7 @@ export default function LocationPicker() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [recent, setRecent] = useState<Place[]>([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [bias, setBias] = useState<{ latitude: number; longitude: number } | undefined>();
 
   useEffect(() => {
@@ -46,7 +47,11 @@ export default function LocationPicker() {
   }, [query, bias]);
 
   async function pick(place: Place | null) {
-    if (place && field) {
+    if (!place) {
+      setError("Couldn't get that location. Check your connection and try again.");
+      return;
+    }
+    if (field) {
       await saveRecent(place);
       setPlace(field, place);
       router.back();
@@ -55,16 +60,31 @@ export default function LocationPicker() {
 
   async function choose(placeId: string) {
     setBusy(true);
-    const place = await placeDetails(placeId);
-    setBusy(false);
-    pick(place);
+    setError(null);
+    try {
+      pick(await placeDetails(placeId));
+    } catch {
+      setError("Couldn't get that location. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function useCurrent() {
     setBusy(true);
-    const place = await currentPlace();
-    setBusy(false);
-    pick(place);
+    setError(null);
+    try {
+      const place = await currentPlace();
+      if (!place) {
+        setError('Location permission denied or unavailable. Search instead.');
+        return;
+      }
+      pick(place);
+    } catch {
+      setError("Couldn't get your location. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const showRecent = query.trim().length < 3 && recent.length > 0;
@@ -85,7 +105,15 @@ export default function LocationPicker() {
       </View>
 
       <View className="px-6 pt-2 gap-3">
-        <Input placeholder="Search a place" autoFocus value={query} onChangeText={setQuery} />
+        <Input
+          placeholder="Search a place"
+          autoFocus
+          value={query}
+          onChangeText={(t) => {
+            setQuery(t);
+            setError(null);
+          }}
+        />
         <Pressable
           onPress={useCurrent}
           accessibilityRole="button"
@@ -94,6 +122,7 @@ export default function LocationPicker() {
           <LocateFixed color={colors.accent} size={18} />
           <Text className="text-accent text-sm font-medium">Use current location</Text>
         </Pressable>
+        {error ? <Text className="text-danger text-sm">{error}</Text> : null}
       </View>
 
       {busy ? (
