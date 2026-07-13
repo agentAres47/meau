@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,7 +27,13 @@ import {
   type ChatMeta,
   type Message,
 } from '../../lib/chat';
-import { getAutopoolChatMeta, autopoolSummary, type AutopoolChatMeta } from '../../lib/autopool';
+import {
+  getAutopoolChatMeta,
+  autopoolSummary,
+  leavePool,
+  subscribeMatchStatus,
+  type AutopoolChatMeta,
+} from '../../lib/autopool';
 
 const QUICK_PROMPTS = [
   'What time exactly?',
@@ -85,9 +92,42 @@ export default function MatchChat() {
     };
   }, [matchId, me]);
 
+  // Autopool only: if the OTHER participant leaves (disbanding the pool),
+  // this side gets kicked back to the Auto Pool tab too -- their own session
+  // is already back to 'waiting' server-side, so they resume searching
+  // immediately with no re-picking.
+  useEffect(() => {
+    if (!matchId || meta?.kind !== 'autopool') return;
+    return subscribeMatchStatus(matchId, (status) => {
+      if (status === 'disbanded') router.replace('/(tabs)/autopool');
+    });
+  }, [matchId, meta?.kind]);
+
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   }, []);
+
+  function onBack() {
+    if (meta?.kind !== 'autopool') {
+      router.back();
+      return;
+    }
+    Alert.alert('Leave this pool?', 'Everyone else in this pool will start searching again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: async () => {
+          if (!matchId) return;
+          try {
+            await leavePool(matchId);
+          } finally {
+            router.replace('/(tabs)/autopool');
+          }
+        },
+      },
+    ]);
+  }
 
   async function send(body: string, kind: 'text' | 'structured' = 'text') {
     const trimmed = body.trim();
@@ -112,7 +152,7 @@ export default function MatchChat() {
     <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2">
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back" className="active:opacity-70 -ml-1">
+        <Pressable onPress={onBack} accessibilityLabel="Back" className="active:opacity-70 -ml-1">
           <ChevronLeft color={colors.text} size={26} />
         </Pressable>
         {meta?.kind === 'autopool' ? (

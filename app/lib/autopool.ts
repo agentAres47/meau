@@ -86,6 +86,31 @@ export function subscribePoolSession(sessionId: string, onChange: () => void): (
   };
 }
 
+// Disbands the pool: the caller's own session is cancelled, everyone else's
+// goes straight back to 'waiting' (same route/mode/slot, no re-picking) so
+// they resume searching immediately.
+export async function leavePool(matchId: string): Promise<void> {
+  const { error } = await supabase.rpc('leave_autopool', { p_match_id: matchId });
+  if (error) throw new Error(error.message);
+}
+
+// Realtime on the matches row -> callback with the new status ('disbanded'
+// when either side leaves). Used by the autopool chat screen so the
+// participant who DIDN'T leave gets kicked back to searching live.
+export function subscribeMatchStatus(matchId: string, onChange: (status: string) => void): () => void {
+  const channel = supabase
+    .channel(`match-status-${matchId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
+      (payload) => onChange((payload.new as { status: string }).status)
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
 export async function getPoolMatchId(poolGroupId: string): Promise<string | null> {
   const { data } = await supabase
     .from('matches')
