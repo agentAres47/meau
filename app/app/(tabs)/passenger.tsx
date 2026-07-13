@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -114,19 +114,17 @@ function SearchForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      reset();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-  );
+  // Reset once on mount only — NOT on every focus. The location-picker modal
+  // returns focus to this same (still-mounted) screen when it closes, and a
+  // focus-effect reset here would wipe the just-picked location right back out.
+  useEffect(() => {
+    reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (pickup && drop) getRoute(pickup, drop).then((r) => setOffer(suggestedPrice(r.distanceKm)));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pickup, drop])
-  );
+  useEffect(() => {
+    if (pickup && drop) getRoute(pickup, drop).then((r) => setOffer(suggestedPrice(r.distanceKm)));
+  }, [pickup, drop]);
 
   function pickWhen() {
     DateTimePickerAndroid.open({
