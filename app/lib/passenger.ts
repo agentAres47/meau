@@ -42,7 +42,8 @@ export async function createRideRequest(params: {
     })
     .select('id')
     .single();
-  if (error || !data) throw new Error('Could not start your search. Try again.');
+  if (error) throw new Error(`Search failed: ${error.message}`);
+  if (!data) throw new Error('Could not start your search. Try again.');
   return data.id as string;
 }
 
