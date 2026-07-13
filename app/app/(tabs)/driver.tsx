@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, ScrollView, Text } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Car, Clock } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { MapPreview } from '../../components/MapPreview';
+import { IncomingRequests } from '../../components/IncomingRequests';
 import { useSession } from '../../store/session';
 import { getDriverStatus, type DriverStatus } from '../../lib/driver';
 import { getMyActiveToken, cancelRideToken, type RideToken } from '../../lib/rides';
@@ -23,29 +24,27 @@ export default function Driver() {
   const [token, setToken] = useState<RideToken | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Depend only on the stable refreshProfile so the effect runs once per focus
-  // (not on every profile-object change, which would churn and never resolve).
-  // Read the freshest profile via getState() after refreshing.
+  const refresh = useCallback(async () => {
+    const p = useSession.getState().profile;
+    if (!p) return;
+    const [d, t] = await Promise.all([
+      getDriverStatus(p.id),
+      p.is_driver_verified ? getMyActiveToken(p.id) : Promise.resolve(null),
+    ]);
+    setStatus(d.status);
+    setToken(t);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      (async () => {
-        await refreshProfile();
-        const p = useSession.getState().profile;
-        if (!alive || !p) return;
-        const [d, t] = await Promise.all([
-          getDriverStatus(p.id),
-          p.is_driver_verified ? getMyActiveToken(p.id) : Promise.resolve(null),
-        ]);
-        if (alive) {
-          setStatus(d.status);
-          setToken(t);
-        }
-      })();
+      refreshProfile().then(() => {
+        if (alive) refresh();
+      });
       return () => {
         alive = false;
       };
-    }, [refreshProfile])
+    }, [refreshProfile, refresh])
   );
 
   async function onCancel() {
@@ -82,9 +81,10 @@ export default function Driver() {
           )}
         </View>
       ) : token ? (
-        <View className="flex-1 px-6 pt-2">
+        <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-4">
+          <IncomingRequests driverId={profile.id} onMatched={refresh} />
           <ActiveTokenCard token={token} onCancel={onCancel} busy={busy} />
-        </View>
+        </ScrollView>
       ) : (
         <View className="flex-1 justify-center px-6 gap-6">
           <EmptyState

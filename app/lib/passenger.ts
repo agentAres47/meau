@@ -47,7 +47,8 @@ export async function createRideRequest(params: {
   return data.id as string;
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+// Shared POST to the matching service with a hard timeout.
+export async function callMatching<T>(path: string, body: unknown): Promise<T> {
   if (!MATCHING) throw new Error('Matching service is not configured.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
@@ -68,10 +69,64 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function matchRides(requestId: string): Promise<Match[]> {
-  const { matches } = await post<{ matches: Match[] }>('/match', { request_id: requestId });
+  const { matches } = await callMatching<{ matches: Match[] }>('/match', { request_id: requestId });
   return matches;
 }
 
 export async function requestDrivers(requestId: string, tokenIds: string[]): Promise<void> {
-  await post('/request', { request_id: requestId, token_ids: tokenIds });
+  await callMatching('/request', { request_id: requestId, token_ids: tokenIds });
+}
+
+export type RequestState = {
+  status: 'searching' | 'matched' | 'cancelled' | 'expired';
+  matched_driver_id: string | null;
+  matched_token_id: string | null;
+};
+
+export async function getRequestState(requestId: string): Promise<RequestState | null> {
+  const { data } = await supabase
+    .from('ride_requests')
+    .select('status, matched_driver_id, matched_token_id')
+    .eq('id', requestId)
+    .maybeSingle();
+  return (data as RequestState) ?? null;
+}
+
+// Realtime on the passenger's own request row -> callback on any change.
+export function subscribeRequest(requestId: string, onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`request-${requestId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'ride_requests', filter: `id=eq.${requestId}` },
+      onChange
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+export type MatchedDriver = { full_name: string; photo_url: string | null };
+
+export async function getDriverProfile(driverId: string): Promise<MatchedDriver | null> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('full_name, photo_url')
+    .eq('id', driverId)
+    .maybeSingle();
+  return (data as MatchedDriver) ?? null;
+}
+
+export async function getMatchId(requestId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('ride_request_id', requestId)
+    .maybeSingle();
+  return (data?.id as string) ?? null;
+}
+
+export async function cancelRequest(requestId: string): Promise<void> {
+  await supabase.rpc('cancel_request', { p_request_id: requestId });
 }

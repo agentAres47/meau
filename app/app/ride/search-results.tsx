@@ -17,7 +17,6 @@ import { formatDepart } from '../../lib/format';
 
 export default function SearchResults() {
   const { requestId, pickup, drop, matches } = useSearch();
-  const [requested, setRequested] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
   async function request(tokenId: string) {
@@ -25,7 +24,7 @@ export default function SearchResults() {
     setBusy(tokenId);
     try {
       await requestDrivers(requestId, [tokenId]);
-      setRequested((r) => ({ ...r, [tokenId]: true }));
+      router.push(`/ride/waiting?rid=${requestId}`);
     } catch {
       // keep the button; user can retry
     } finally {
@@ -66,7 +65,6 @@ export default function SearchResults() {
               match={m}
               pickup={pickup}
               drop={drop}
-              requested={!!requested[m.token_id]}
               busy={busy === m.token_id}
               onRequest={() => request(m.token_id)}
             />
@@ -81,14 +79,12 @@ function MatchCard({
   match,
   pickup,
   drop,
-  requested,
   busy,
   onRequest,
 }: {
   match: Match;
   pickup: Place | null;
   drop: Place | null;
-  requested: boolean;
   busy: boolean;
   onRequest: () => void;
 }) {
@@ -137,13 +133,7 @@ function MatchCard({
         Departs {formatDepart(match.depart_at)} · {match.time_delta_min} min from your time
       </Text>
 
-      {requested ? (
-        <View className="items-center py-2">
-          <Text className="text-success text-sm font-semibold">Requested ✓</Text>
-        </View>
-      ) : (
-        <Button label="Request this ride" loading={busy} onPress={onRequest} />
-      )}
+      <Button label="Request this ride" loading={busy} onPress={onRequest} />
     </Card>
   );
 }
