@@ -95,18 +95,16 @@ app.post('/accept', async (req, res) => {
 
 // Expire past-departure tokens / stale requests + pool sessions every 60s.
 setInterval(() => {
-  admin.rpc('expire_stale_rows').then(
-    () => {},
-    () => {}
-  );
+  admin.rpc('expire_stale_rows').then(({ error }) => {
+    if (error) console.error('expire_stale_rows failed:', error.message);
+  });
 }, 60_000);
 
 // Group waiting auto-pool sessions into pools (specs/07-AUTO-POOL.md).
 setInterval(() => {
-  admin.rpc('run_autopool_matching').then(
-    () => {},
-    () => {}
-  );
+  admin.rpc('run_autopool_matching').then(({ error }) => {
+    if (error) console.error('run_autopool_matching failed:', error.message);
+  });
 }, 12_000);
 
 app.listen(PORT, () => console.log(`matching listening on :${PORT}`));
