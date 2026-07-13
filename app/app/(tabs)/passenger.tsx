@@ -78,7 +78,7 @@ export default function Passenger() {
               variant="secondary"
               className="w-full"
               onPress={async () => {
-                if (active) await endRide(active.id);
+                if (profile) await endRide(profile.id);
                 setActive(null);
                 setDriver(null);
               }}

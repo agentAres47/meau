@@ -150,9 +150,14 @@ export async function getActiveRequest(passengerId: string): Promise<ActiveReque
   return (data as ActiveRequest) ?? null;
 }
 
-// End a matched ride so the passenger can search again.
-// ponytail: marks the request 'cancelled'; a real ride-completion lifecycle
-// (and restoring the driver's seat) comes with the ride states work later.
-export async function endRide(requestId: string): Promise<void> {
-  await supabase.from('ride_requests').update({ status: 'cancelled' }).eq('id', requestId);
+// End the passenger's ride(s) so they can search again. Cancels ALL of their
+// active requests (searching + matched) — robust against any lingering ones.
+// ponytail: a real ride-completion lifecycle (and restoring the driver's seat)
+// comes with the ride states work later.
+export async function endRide(passengerId: string): Promise<void> {
+  await supabase
+    .from('ride_requests')
+    .update({ status: 'cancelled' })
+    .eq('passenger_id', passengerId)
+    .in('status', ['searching', 'matched']);
 }
