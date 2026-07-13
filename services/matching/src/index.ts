@@ -105,6 +105,6 @@ setInterval(() => {
   admin.rpc('run_autopool_matching').then(({ error }) => {
     if (error) console.error('run_autopool_matching failed:', error.message);
   });
-}, 12_000);
+}, 5_000);
 
 app.listen(PORT, () => console.log(`matching listening on :${PORT}`));
