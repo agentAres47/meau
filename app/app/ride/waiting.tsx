@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Radar } from '../../components/Radar';
 import { getRequestState, subscribeRequest, getMatchId, cancelRequest } from '../../lib/passenger';
+import { matchHaptic } from '../../lib/haptics';
 
 export default function Waiting() {
   const { rid } = useLocalSearchParams<{ rid: string }>();
@@ -18,6 +19,7 @@ export default function Waiting() {
     if (!s) return;
     if (s.status === 'matched' && s.matched_driver_id && !done.current) {
       done.current = true;
+      matchHaptic();
       const matchId = await getMatchId(rid);
       if (matchId) router.replace(`/ride/matched/${matchId}`);
     }

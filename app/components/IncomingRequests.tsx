@@ -13,6 +13,7 @@ import {
   declineTarget,
   type Incoming,
 } from '../lib/requests';
+import { matchHaptic } from '../lib/haptics';
 
 // Live list of pending ride requests aimed at this driver's token. Accept is
 // atomic (race winner); losing requests vanish via realtime (target dismissed).
@@ -35,6 +36,7 @@ export function IncomingRequests({ driverId, onMatched }: { driverId: string; on
     setNote(null);
     try {
       const matchId = await acceptRequest({ requestId: i.request_id, tokenId: i.token_id, driverId });
+      matchHaptic();
       onMatched();
       router.push(`/ride/matched/${matchId}`);
     } catch {

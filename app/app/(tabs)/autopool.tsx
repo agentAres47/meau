@@ -21,6 +21,7 @@ import {
   type PoolMode,
   type RouteCode,
 } from '../../lib/autopool';
+import { matchHaptic } from '../../lib/haptics';
 import { formatDepart } from '../../lib/format';
 
 export default function AutoPool() {
@@ -51,6 +52,7 @@ export default function AutoPool() {
         return;
       }
       if (s.status === 'matched' && s.pool_group_id) {
+        matchHaptic();
         const matchId = await getPoolMatchId(s.pool_group_id);
         if (matchId) router.replace(`/match/${matchId}`);
         return;

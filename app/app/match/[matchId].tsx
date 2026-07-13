@@ -8,7 +8,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Send, ShieldCheck, Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
+import { Skeleton } from '../../components/Skeleton';
 import { useSession } from '../../store/session';
 import {
   getChatMeta,
@@ -142,8 +142,20 @@ export default function MatchChat() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
-        <ActivityIndicator color={colors.accent} />
+      <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+        <View className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2">
+          <Skeleton width={26} height={26} radius={13} />
+          <Skeleton width={40} height={40} radius={20} />
+          <View className="flex-1 gap-2">
+            <Skeleton width="50%" height={14} />
+            <Skeleton width="30%" height={10} />
+          </View>
+        </View>
+        <View className="px-4 pt-4 gap-3">
+          <Skeleton width="55%" height={36} radius={18} style={{ alignSelf: 'flex-start' }} />
+          <Skeleton width="40%" height={36} radius={18} style={{ alignSelf: 'flex-end' }} />
+          <Skeleton width="60%" height={36} radius={18} style={{ alignSelf: 'flex-start' }} />
+        </View>
       </SafeAreaView>
     );
   }

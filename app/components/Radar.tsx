@@ -9,12 +9,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Search, type LucideIcon } from 'lucide-react-native';
 import { colors } from '../theme/tokens';
+import { useReducedMotion } from '../lib/reducedMotion';
 
 export function Radar({ icon: Icon = Search }: { icon?: LucideIcon }) {
+  const reduced = useReducedMotion();
   const p = useSharedValue(0);
   useEffect(() => {
-    p.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }), -1, false);
-  }, [p]);
+    p.value = reduced ? 0.4 : withRepeat(withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }), -1, false);
+  }, [p, reduced]);
   const ring = useAnimatedStyle(() => ({ transform: [{ scale: 0.6 + p.value }], opacity: 1 - p.value }));
 
   return (

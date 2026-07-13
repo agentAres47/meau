@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
+import { Skeleton } from '../../components/Skeleton';
 import { MapPreview } from '../../components/MapPreview';
 import { IncomingRequests } from '../../components/IncomingRequests';
 import { MatchedPassengers } from '../../components/MatchedPassengers';
@@ -26,6 +27,7 @@ export default function Driver() {
   const [token, setToken] = useState<RideToken | null>(null);
   const [matched, setMatched] = useState<MatchedPassenger[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     const p = useSession.getState().profile;
@@ -37,6 +39,7 @@ export default function Driver() {
     setStatus(d.status);
     setToken(t);
     setMatched(t ? await getMatchedPassengers(t.id) : []);
+    setLoading(false);
   }, []);
 
   useFocusEffect(
@@ -83,6 +86,10 @@ export default function Driver() {
               onAction={() => router.push('/profile/become-driver')}
             />
           )}
+        </View>
+      ) : loading ? (
+        <View className="px-6 pt-2">
+          <TokenCardSkeleton />
         </View>
       ) : token ? (
         <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-4">
@@ -148,6 +155,28 @@ function ActiveTokenCard({
       </View>
 
       <Button label="Cancel ride" variant="secondary" loading={busy} onPress={onCancel} />
+    </Card>
+  );
+}
+
+function TokenCardSkeleton() {
+  return (
+    <Card className="gap-4">
+      <View className="flex-row items-center justify-between">
+        <Skeleton width={70} height={20} radius={10} />
+        <Skeleton width={64} height={20} radius={6} />
+      </View>
+      <Skeleton height={140} radius={16} />
+      <View className="gap-2">
+        <Skeleton width="80%" height={16} />
+        <Skeleton width="30%" height={12} />
+        <Skeleton width="60%" height={16} />
+      </View>
+      <View className="flex-row justify-between">
+        <Skeleton width={80} height={32} />
+        <Skeleton width={80} height={32} />
+      </View>
+      <Skeleton height={48} radius={12} />
     </Card>
   );
 }

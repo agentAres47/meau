@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck } from 'lucide-react-native';
@@ -14,6 +15,7 @@ import { getMatchStatus, cancelMatch, type MatchStatus } from '../../../lib/matc
 import { subscribeRequest } from '../../../lib/passenger';
 import { decodeRoute } from '../../../lib/maps';
 import { formatDepart } from '../../../lib/format';
+import { useReducedMotion } from '../../../lib/reducedMotion';
 
 // Shared by both sides of a match so driver + passenger see the exact same
 // "we're on the same page" screen: each other's info, the route, a seat
@@ -25,6 +27,19 @@ export default function MatchedRide() {
   const [status, setStatus] = useState<MatchStatus | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Signature match-moment entrance (11-UI-DESIGN.md) — a quiet spring/fade
+  // on the "you matched" block, once, on mount. Everything else on this
+  // screen stays still; this is the one deliberate beat.
+  const reducedMotion = useReducedMotion();
+  const entrance = useSharedValue(0);
+  useEffect(() => {
+    entrance.value = reducedMotion ? 1 : withSpring(1, { damping: 12, stiffness: 120 });
+  }, [reducedMotion, entrance]);
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: entrance.value,
+    transform: [{ scale: 0.85 + entrance.value * 0.15 }],
+  }));
 
   const load = useCallback(async () => {
     if (!matchId) return;
@@ -115,7 +130,7 @@ export default function MatchedRide() {
   return (
     <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
       <ScrollView contentContainerClassName="px-6 pt-4 pb-6 gap-4">
-        <View className="items-center gap-2">
+        <Animated.View style={entranceStyle} className="items-center gap-2">
           <Badge label="MATCHED" tone="success" />
           <Avatar name={status.other_name || 'Rider'} uri={status.other_photo} size={64} />
           <View className="flex-row items-center gap-1.5">
@@ -125,7 +140,7 @@ export default function MatchedRide() {
             <ShieldCheck color={colors.success} size={16} />
           </View>
           <Text className="text-muted text-xs capitalize">{status.other_role}</Text>
-        </View>
+        </Animated.View>
 
         {region ? (
           <MapPreview
