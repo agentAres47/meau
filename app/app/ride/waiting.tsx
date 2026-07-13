@@ -17,6 +17,7 @@ import {
   getRequestState,
   subscribeRequest,
   getDriverProfile,
+  getMatchId,
   cancelRequest,
   type MatchedDriver,
 } from '../../lib/passenger';
@@ -25,6 +26,7 @@ export default function Waiting() {
   const { rid } = useLocalSearchParams<{ rid: string }>();
   const [matched, setMatched] = useState(false);
   const [driver, setDriver] = useState<MatchedDriver | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const done = useRef(false);
 
   const refetch = useCallback(async () => {
@@ -35,6 +37,7 @@ export default function Waiting() {
       done.current = true;
       setMatched(true);
       setDriver(await getDriverProfile(s.matched_driver_id));
+      setMatchId(await getMatchId(rid));
     }
   }, [rid]);
 
@@ -60,7 +63,14 @@ export default function Waiting() {
             <Text className="text-text text-base font-semibold">{driver?.full_name || 'Your driver'}</Text>
             <Text className="text-muted text-sm">is picking you up.</Text>
           </View>
-          <Button label="Done" onPress={() => router.back()} className="w-full" />
+          {matchId ? (
+            <Button
+              label="Message driver"
+              onPress={() => router.replace(`/match/${matchId}`)}
+              className="w-full"
+            />
+          ) : null}
+          <Button label="Done" variant="secondary" onPress={() => router.back()} className="w-full" />
         </View>
       ) : (
         <View className="items-center gap-6">

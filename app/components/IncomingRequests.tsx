@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
+import { router } from 'expo-router';
 import { colors } from '../theme/tokens';
 import { ArrowRight } from 'lucide-react-native';
 import { Card } from './Card';
@@ -33,8 +34,9 @@ export function IncomingRequests({ driverId, onMatched }: { driverId: string; on
     setBusy(i.target_id);
     setNote(null);
     try {
-      await acceptRequest({ requestId: i.request_id, tokenId: i.token_id, driverId });
+      const matchId = await acceptRequest({ requestId: i.request_id, tokenId: i.token_id, driverId });
       onMatched();
+      router.push(`/match/${matchId}`);
     } catch {
       setNote('That request was already taken.');
     } finally {

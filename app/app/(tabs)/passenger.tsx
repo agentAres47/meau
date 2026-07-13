@@ -22,6 +22,7 @@ import {
   getActiveRequest,
   endRide,
   getDriverProfile,
+  getMatchId,
   type ActiveRequest,
   type MatchedDriver,
 } from '../../lib/passenger';
@@ -31,6 +32,7 @@ export default function Passenger() {
   const profile = useSession((s) => s.profile);
   const [active, setActive] = useState<ActiveRequest | null | undefined>(undefined);
   const [driver, setDriver] = useState<MatchedDriver | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
 
   const loadActive = useCallback(async () => {
     if (!profile) return;
@@ -38,6 +40,7 @@ export default function Passenger() {
     setActive(a);
     if (a?.status === 'matched' && a.matched_driver_id) {
       setDriver(await getDriverProfile(a.matched_driver_id));
+      setMatchId(await getMatchId(a.id));
     }
   }, [profile]);
 
@@ -71,8 +74,15 @@ export default function Passenger() {
             <Avatar name={driver?.full_name || 'Driver'} uri={driver?.photo_url} size={64} />
             <Text className="text-text text-base font-semibold">{driver?.full_name || 'Your driver'}</Text>
             <Text className="text-muted text-sm text-center">
-              Chat opens in the next update. End the ride to search again.
+              Message your driver to sort out the pickup. End the ride to search again.
             </Text>
+            {matchId ? (
+              <Button
+                label="Open chat"
+                className="w-full"
+                onPress={() => router.push(`/match/${matchId}`)}
+              />
+            ) : null}
             <Button
               label="End ride"
               variant="secondary"
@@ -81,6 +91,7 @@ export default function Passenger() {
                 if (profile) await endRide(profile.id);
                 setActive(null);
                 setDriver(null);
+                setMatchId(null);
               }}
             />
           </Card>
