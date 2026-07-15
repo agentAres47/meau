@@ -11,6 +11,11 @@ type Props = {
   pickup?: LatLng | null;
   drop?: LatLng | null;
   path?: LatLng[];
+  // Insets the map's "logical" viewport (Google's own camera/label layout
+  // respects this) so labels and the default position/zoom controls don't
+  // render underneath floating glass UI — the correct native fix for that,
+  // rather than a manual overlay-avoidance hack.
+  mapPadding?: { top: number; right: number; bottom: number; left: number };
 };
 
 // Full-screen interactive map — the canvas the passenger home screen floats
@@ -18,7 +23,7 @@ type Props = {
 // REDESIGN_PLAN §Locked decisions); camera movement is driven imperatively
 // by the parent via the forwarded MapView ref (animateToRegion).
 export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
-  { initialRegion, currentLocation, pickup, drop, path },
+  { initialRegion, currentLocation, pickup, drop, path, mapPadding },
   ref
 ) {
   return (
@@ -28,6 +33,7 @@ export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
       customMapStyle={DARK_MAP_STYLE}
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion}
+      mapPadding={mapPadding}
       showsUserLocation={false}
       showsMyLocationButton={false}
       showsCompass={false}

@@ -7,12 +7,13 @@ import BottomSheet, { BottomSheetView, BottomSheetModal } from '@gorhom/bottom-s
 import type MapView from 'react-native-maps';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Clock } from 'lucide-react-native';
-import { colors, radius } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { HomeMap } from '../../components/HomeMap';
 import { FloatingSearchCard } from '../../components/FloatingSearchCard';
 import { FareConfirmSheet } from '../../components/FareConfirmSheet';
+import { DOCK_MARGIN, DOCK_HEIGHT } from '../../components/TabBar';
 import { useSession } from '../../store/session';
 import { useRideDraft } from '../../store/rideDraft';
 import { useSearch } from '../../store/search';
@@ -100,6 +101,7 @@ function SearchForm() {
 
   const [currentLocation, setCurrentLocation] = useState<Place | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
+  const [searchCardHeight, setSearchCardHeight] = useState(0);
   const [now, setNow] = useState(true);
   const [when, setWhen] = useState(() => new Date(Date.now() + 10 * 60_000));
   const [offer, setOffer] = useState(60);
@@ -118,18 +120,23 @@ function SearchForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Center on the user's current location once, on mount (also drops the
-  // "you are here" marker). Silently falls back to a default region if
-  // permission is denied — never blocks the screen. Reads the draft store's
-  // live state (not the closed-over pickup/drop) since this effect's closure
-  // is fixed at the first render — a remount with stale leftover draft state
-  // would otherwise read pre-reset values here (same pattern as driver.tsx's
-  // getState() fix for an analogous stale-closure issue).
+  // Auto-fill pickup with the user's current location on open (Ola/Uber/
+  // Google Maps behavior — the user should only need to choose a
+  // destination). Also centers the map + drops the "you are here" marker.
+  // Silently falls back to leaving pickup empty for manual selection if
+  // permission is denied or location can't be resolved — never blocks the
+  // screen. Reads the draft store's live state (not the closed-over
+  // pickup/drop) since this effect's closure is fixed at the first render —
+  // a remount with stale leftover draft state would otherwise read
+  // pre-reset values here (same pattern as driver.tsx's getState() fix for
+  // an analogous stale-closure issue).
   useEffect(() => {
     currentPlace().then((p) => {
       setCurrentLocation(p);
+      if (!p) return;
       const draft = useRideDraft.getState();
-      if (p && !draft.origin && !draft.dest) {
+      if (!draft.origin && !draft.dest) {
+        useRideDraft.getState().setPlace('origin', p);
         mapRef.current?.animateToRegion(
           { latitude: p.latitude, longitude: p.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 },
           600
@@ -210,6 +217,21 @@ function SearchForm() {
     }
   }
 
+  // The floating dock (TabBar) is rendered by the outer Tab Navigator, OUTSIDE
+  // this screen's own tree, and stacks visually on top of it — so the sheet's
+  // own bottom content (the "Find rides" button) could otherwise end up
+  // sitting underneath the dock. Fix: constrain the View that WRAPS
+  // <BottomSheet> to stop short of the dock's footprint. BottomSheet
+  // auto-measures its own container via onLayout when no explicit height is
+  // given, so a wrapper with a definite (non-flex) height — via top:0 +
+  // bottom:dockFootprint on an absolutely positioned view — is all it needs
+  // to correctly treat "the dock's top edge" as its own floor.
+  // (BottomSheet's `bottomInset` prop does NOT do this — traced through the
+  // library source: it only affects modal/detached sheets, a no-op for the
+  // plain non-modal <BottomSheet> used here.)
+  const dockFootprint = insets.bottom + DOCK_MARGIN + DOCK_HEIGHT + spacing.md;
+  const topOffset = insets.top + spacing.md;
+
   return (
     <View style={{ flex: 1 }}>
       <HomeMap
@@ -219,9 +241,19 @@ function SearchForm() {
         pickup={pickup ? { latitude: pickup.latitude, longitude: pickup.longitude } : null}
         drop={drop ? { latitude: drop.latitude, longitude: drop.longitude } : null}
         path={route ? decodeRoute(route.encoded) : undefined}
+        mapPadding={{
+          top: topOffset + searchCardHeight + spacing.md,
+          bottom: dockFootprint + SHEET_SNAP_POINTS[0],
+          left: 0,
+          right: 0,
+        }}
       />
 
-      <View style={{ position: 'absolute', top: insets.top + 12, left: 0, right: 0 }} className="px-6">
+      <View
+        style={{ position: 'absolute', top: topOffset, left: 0, right: 0 }}
+        className="px-6"
+        onLayout={(e) => setSearchCardHeight(e.nativeEvent.layout.height)}
+      >
         <FloatingSearchCard
           pickupLabel={pickup?.label}
           dropLabel={drop?.label}
@@ -230,43 +262,45 @@ function SearchForm() {
         />
       </View>
 
-      <BottomSheet
-        snapPoints={SHEET_SNAP_POINTS}
-        index={0}
-        enableDynamicSizing={false}
-        enablePanDownToClose={false}
-        backgroundStyle={{
-          backgroundColor: colors.surface,
-          borderTopLeftRadius: radius.xxl,
-          borderTopRightRadius: radius.xxl,
-        }}
-        handleIndicatorStyle={{ backgroundColor: colors.glassBorder }}
-      >
-        <BottomSheetView className="px-6 pt-2 pb-8 gap-4">
-          <View className="gap-2">
-            <Text className="text-sm text-muted">When</Text>
-            <View className="flex-row items-center gap-2">
-              <Chip label="Now" selected={now} onPress={() => setNow(true)} />
-              <Pressable onPress={pickWhen} accessibilityRole="button" className="flex-1">
-                <View
-                  className={`flex-row items-center gap-2 rounded-full px-4 py-2 border ${
-                    !now ? 'bg-accent border-accent' : 'bg-surface2 border-surface2'
-                  }`}
-                >
-                  <Clock color={now ? colors.text : colors.bg} size={16} />
-                  <Text className={`text-sm font-medium ${now ? 'text-text' : 'text-bg'}`}>
-                    {now ? 'Pick a time' : formatDepart(when)}
-                  </Text>
-                </View>
-              </Pressable>
+      <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: dockFootprint }}>
+        <BottomSheet
+          snapPoints={SHEET_SNAP_POINTS}
+          index={0}
+          enableDynamicSizing={false}
+          enablePanDownToClose={false}
+          backgroundStyle={{
+            backgroundColor: colors.surface,
+            borderTopLeftRadius: radius.xxl,
+            borderTopRightRadius: radius.xxl,
+          }}
+          handleIndicatorStyle={{ backgroundColor: colors.glassBorder }}
+        >
+          <BottomSheetView className="px-6 pt-2 pb-8 gap-4">
+            <View className="gap-2">
+              <Text className="text-sm text-muted">When</Text>
+              <View className="flex-row items-center gap-2">
+                <Chip label="Now" selected={now} onPress={() => setNow(true)} />
+                <Pressable onPress={pickWhen} accessibilityRole="button" className="flex-1">
+                  <View
+                    className={`flex-row items-center gap-2 rounded-full px-4 py-2 border ${
+                      !now ? 'bg-accent border-accent' : 'bg-surface2 border-surface2'
+                    }`}
+                  >
+                    <Clock color={now ? colors.text : colors.bg} size={16} />
+                    <Text className={`text-sm font-medium ${now ? 'text-text' : 'text-bg'}`}>
+                      {now ? 'Pick a time' : formatDepart(when)}
+                    </Text>
+                  </View>
+                </Pressable>
+              </View>
             </View>
-          </View>
 
-          {formError ? <Text className="text-danger text-sm">{formError}</Text> : null}
+            {formError ? <Text className="text-danger text-sm">{formError}</Text> : null}
 
-          <Button label="Find rides" onPress={openFareConfirm} />
-        </BottomSheetView>
-      </BottomSheet>
+            <Button label="Find rides" onPress={openFareConfirm} />
+          </BottomSheetView>
+        </BottomSheet>
+      </View>
 
       <FareConfirmSheet
         ref={fareSheetRef}

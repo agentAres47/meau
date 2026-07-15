@@ -22,17 +22,18 @@ export const colors = {
   success: '#3DDC84',
   danger: '#FF5C5C',
   // Glass surface fills (see components/Glass). Nearly colorless by design —
-  // low-opacity white + hairline white border + shadow for depth. The
-  // background gradient provides color; the glass itself should not.
-  glassTint: '#FFFFFF0F', // ~6% white
-  glassBorder: '#FFFFFF26', // ~15% white
+  // very low-opacity white + a thin hairline white border + shadow for depth.
+  // The background gradient provides color; the glass itself should not.
+  // Target mix across any screen: ~95% black, ~4% glass, ~1% accent.
+  glassTint: '#FFFFFF0D', // ~5% white
+  glassBorder: '#FFFFFF1A', // ~10% white — thin hairline, not a visible box edge
 } as const;
 
 // Background gradient stops + stop positions (expo-linear-gradient, top →
-// bottom). Flat black for the first ~65% of the screen, then an extremely
-// subtle wine warmth in the last third — never a visible "pink screen."
-export const gradient = ['#0D0D0D', '#0D0D0D', '#150F11'] as const;
-export const gradientLocations = [0, 0.65, 1] as const;
+// bottom). Near-flat black for most of the screen — the transition should
+// barely be noticeable, never a visible "pink screen."
+export const gradient = ['#090909', '#0D0D0D', '#141113'] as const;
+export const gradientLocations = [0, 0.7, 1] as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
