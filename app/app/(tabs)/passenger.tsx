@@ -237,7 +237,14 @@ function SearchForm() {
       <HomeMap
         ref={mapRef}
         initialRegion={DEFAULT_REGION}
-        currentLocation={currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
+        // Suppress the "you are here" marker once pickup is set — pickup is
+        // auto-filled FROM current location, so both would otherwise render
+        // stacked on the identical coordinate (the two markers' differing
+        // sizes create a visible stray edge where one peeks out from behind
+        // the other). Once there's an explicit pickup marker, it's the
+        // relevant reference point; a redundant "current location" dot
+        // underneath it is just clutter anyway.
+        currentLocation={!pickup && currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
         pickup={pickup ? { latitude: pickup.latitude, longitude: pickup.longitude } : null}
         drop={drop ? { latitude: drop.latitude, longitude: drop.longitude } : null}
         path={route ? decodeRoute(route.encoded) : undefined}
