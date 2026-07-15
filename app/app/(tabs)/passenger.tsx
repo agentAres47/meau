@@ -145,7 +145,7 @@ function SearchForm() {
             value={pickup?.label}
             onPress={() => router.push('/modal/location-picker?field=origin')}
           />
-          <View className="h-px bg-surface2 ml-7" />
+          <View className="h-px bg-glassBorder ml-7" />
           <PlaceRow
             icon={<MapPin color={colors.success} size={16} />}
             label="Drop"

@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Car, Search, Users, type LucideIcon } from 'lucide-react-native';
-import { colors } from '../theme/tokens';
+import { colors, motion } from '../theme/tokens';
 
 const META: Record<string, { icon: LucideIcon; label: string }> = {
   driver: { icon: Car, label: 'Driver' },
@@ -18,7 +18,7 @@ const META: Record<string, { icon: LucideIcon; label: string }> = {
 
 const INSET = 10; // horizontal padding of the sliding pill within a tab slot
 
-// Custom bottom tab bar with a spring-animated active pill (11-UI-DESIGN.md).
+// Custom bottom tab bar with a controlled (no-overshoot) active pill.
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const count = state.routes.length;
@@ -26,7 +26,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   const index = useSharedValue(state.index);
 
   useEffect(() => {
-    index.value = withSpring(state.index, { damping: 18, stiffness: 180 });
+    index.value = withSpring(state.index, motion.spring);
   }, [state.index, index]);
 
   const pillStyle = useAnimatedStyle(() => {

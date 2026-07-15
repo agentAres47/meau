@@ -2,29 +2,37 @@
 // with tailwind.config.js `theme.extend.colors` (className usage like `bg-accent`
 // reads from tailwind; direct RN styles read from here).
 //
-// Dark-only. Palette: warm near-black base with a soft plum gradient; accent is
-// a premium powder pink used sparingly (~5–10% of any screen) for selection,
-// focus and live states. Primary CTAs use the deeper `accentCta` pink.
+// Dark-only. Palette: the app should read as premium BLACK first — near-flat,
+// almost no visible gradient, with only a whisper of wine warmth near the very
+// bottom of the screen (see `gradient`). Glass surfaces are intentionally
+// colorless (low-opacity white + hairline white border) so the background is
+// what supplies any color, never the glass itself. Accent (powder pink) is
+// reserved for active/selected states, primary CTAs, and small highlights —
+// never a default/always-on fill. See colors.ts usage audit before adding a
+// new always-on `bg-accent`.
 export const colors = {
   bg: '#0D0D0D',
-  surface: '#151218', // warm dark — first gradient step; non-glass raised fills
-  surface2: '#23171E', // warmer raised — inputs, skeleton, second gradient step
+  surface: '#121012', // barely lifted off bg — non-glass raised fills (e.g. ScreenHeader)
+  surface2: '#1A1517', // raised — inputs, skeleton, unselected chips
   text: '#EDEDED',
   muted: '#9A9298',
-  accent: '#F7A6C1', // selection, focus, active icons, live states
+  accent: '#F7A6C1', // selection, focus, active icons, live states — sparing use only
   accentCta: '#E87BA5', // deeper pink — primary buttons only
-  accentSoft: '#F7A6C133', // ~20% — glows, active tab pill, radar
+  accentSoft: '#F7A6C133', // ~20% — glows for legitimate active states (radar, tab pill)
   success: '#3DDC84',
   danger: '#FF5C5C',
-  // Glass surface fills (see components/Glass). Faux-glass on Android, tint over
-  // BlurView on iOS.
-  glassTint: '#F7A6C11A', // ~10% accent
-  glassBorder: '#F7A6C126', // ~15% accent
+  // Glass surface fills (see components/Glass). Nearly colorless by design —
+  // low-opacity white + hairline white border + shadow for depth. The
+  // background gradient provides color; the glass itself should not.
+  glassTint: '#FFFFFF0F', // ~6% white
+  glassBorder: '#FFFFFF26', // ~15% white
 } as const;
 
-// Background gradient stops (expo-linear-gradient, top → bottom). Used by the
-// shared Screen wrapper so every screen shares one warm plum-dark canvas.
-export const gradient = ['#0D0D0D', '#151218', '#23171E'] as const;
+// Background gradient stops + stop positions (expo-linear-gradient, top →
+// bottom). Flat black for the first ~65% of the screen, then an extremely
+// subtle wine warmth in the last third — never a visible "pink screen."
+export const gradient = ['#0D0D0D', '#0D0D0D', '#150F11'] as const;
+export const gradientLocations = [0, 0.65, 1] as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
@@ -33,13 +41,16 @@ export const radius = { sm: 8, md: 12, lg: 16, xl: 20, xxl: 28, pill: 999 } as c
 
 export const fontSize = { xs: 12, sm: 14, base: 16, lg: 20, xl: 28, xxl: 34 } as const;
 
-// Motion — subtle, professional, 150–300ms. `spring` matches the existing tab-bar
-// feel. `pressScale`/`pressLift` drive the shared Pressable micro-interaction.
-// All motion is gated by useReducedMotion at the call site.
+// Motion — subtle, professional, 150–300ms. `spring` is tuned to be
+// critically/slightly-over damped (no overshoot) for premium, Apple/Arc-like
+// settle: for stiffness 220 + mass 1, critical damping ≈ 29.7, so damping 30
+// stops precisely with no bounce. `pressScale`/`pressLift` drive the shared
+// Pressable micro-interaction. All motion is gated by useReducedMotion at the
+// call site.
 export const motion = {
   fast: 150,
   base: 220,
   slow: 300,
-  spring: { damping: 18, stiffness: 180 },
+  spring: { damping: 30, stiffness: 220, mass: 1 },
   pressScale: 0.97,
 } as const;

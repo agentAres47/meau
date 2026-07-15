@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Edge } from 'react-native-safe-area-context';
-import { gradient } from '../theme/tokens';
+import { gradient, gradientLocations } from '../theme/tokens';
 
 type Props = {
   children: ReactNode;
@@ -12,12 +12,13 @@ type Props = {
   className?: string;
 };
 
-// Shared screen canvas: the warm plum-dark background gradient every screen sits
-// on. Replaces the old flat `bg-bg` SafeAreaView so the whole app shares one
-// continuous backdrop for the glass layers to float over.
+// Shared screen canvas: near-flat black for most of the screen, with only a
+// whisper of wine warmth in the last third (see gradientLocations) — every
+// screen shares this one restrained backdrop for the glass layers to float
+// over. Deliberately NOT a visible pink/plum wash.
 export function Screen({ children, edges = ['top'], className }: Props) {
   return (
-    <LinearGradient colors={gradient} style={{ flex: 1 }}>
+    <LinearGradient colors={gradient} locations={gradientLocations} style={{ flex: 1 }}>
       <SafeAreaView className={`flex-1 ${className ?? ''}`} edges={edges}>
         {children}
       </SafeAreaView>

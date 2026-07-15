@@ -7,8 +7,8 @@ module.exports = {
       // Keep in sync with theme/tokens.ts `colors`.
       colors: {
         bg: '#0D0D0D',
-        surface: '#151218',
-        surface2: '#23171E',
+        surface: '#121012',
+        surface2: '#1A1517',
         text: '#EDEDED',
         muted: '#9A9298',
         accent: '#F7A6C1',
@@ -16,8 +16,8 @@ module.exports = {
         accentSoft: '#F7A6C133',
         success: '#3DDC84',
         danger: '#FF5C5C',
-        glassTint: '#F7A6C11A',
-        glassBorder: '#F7A6C126',
+        glassTint: '#FFFFFF0F',
+        glassBorder: '#FFFFFF26',
       },
       fontSize: {
         xs: '12px',

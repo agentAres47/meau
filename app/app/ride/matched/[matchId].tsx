@@ -4,7 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../../components/Screen';
 import { ShieldCheck } from 'lucide-react-native';
-import { colors } from '../../../theme/tokens';
+import { colors, motion } from '../../../theme/tokens';
 import { Avatar } from '../../../components/Avatar';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
@@ -30,11 +30,12 @@ export default function MatchedRide() {
 
   // Signature match-moment entrance (11-UI-DESIGN.md) — a quiet spring/fade
   // on the "you matched" block, once, on mount. Everything else on this
-  // screen stays still; this is the one deliberate beat.
+  // screen stays still; this is the one deliberate beat. Uses the shared
+  // no-overshoot spring so it reads as premium, not playful.
   const reducedMotion = useReducedMotion();
   const entrance = useSharedValue(0);
   useEffect(() => {
-    entrance.value = reducedMotion ? 1 : withSpring(1, { damping: 12, stiffness: 120 });
+    entrance.value = reducedMotion ? 1 : withSpring(1, motion.spring);
   }, [reducedMotion, entrance]);
   const entranceStyle = useAnimatedStyle(() => ({
     opacity: entrance.value,
