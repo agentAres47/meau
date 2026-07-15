@@ -21,12 +21,16 @@ export const colors = {
   accentSoft: '#F7A6C133', // ~20% — glows for legitimate active states (radar, tab pill)
   success: '#3DDC84',
   danger: '#FF5C5C',
-  // Glass surface fills (see components/Glass). Nearly colorless by design —
-  // very low-opacity white + a thin hairline white border + shadow for depth.
-  // The background gradient provides color; the glass itself should not.
-  // Target mix across any screen: ~95% black, ~4% glass, ~1% accent.
-  glassTint: '#FFFFFF0D', // ~5% white
-  glassBorder: '#FFFFFF1A', // ~10% white — thin hairline, not a visible box edge
+  // Glass surface fills (see components/Glass). Colorless (bg-tinted, not
+  // pink) but genuinely DARK/opaque — this sits over live map content, and a
+  // too-faint fill lets the map dominate and fights the legibility of
+  // whatever's on the glass. Android has no real blur in its faux path, so
+  // this opacity IS the Android equivalent of "blur amount." A thin white
+  // hairline border still defines the edge. Target mix across any screen:
+  // ~95% black, ~4% glass, ~1% accent — achieved by glass covering a small
+  // fraction of the screen, not by the glass itself being faint.
+  glassTint: '#0D0D0DB3', // bg-black at ~70% — darkens/obscures what's behind it
+  glassBorder: '#FFFFFF26', // ~15% white — thin hairline, not a visible box edge
 } as const;
 
 // Background gradient stops + stop positions (expo-linear-gradient, top →

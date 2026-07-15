@@ -16,8 +16,8 @@ module.exports = {
         accentSoft: '#F7A6C133',
         success: '#3DDC84',
         danger: '#FF5C5C',
-        glassTint: '#FFFFFF0D',
-        glassBorder: '#FFFFFF1A',
+        glassTint: '#0D0D0DB3',
+        glassBorder: '#FFFFFF26',
       },
       fontSize: {
         xs: '12px',

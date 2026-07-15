@@ -32,7 +32,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + DOCK_MARGIN }}
       className="px-6"
     >
-      <Glass className="px-2 py-1.5" intensity={16} radius={28}>
+      <Glass className="px-2 py-1.5" intensity={40} radius={28}>
         <View className="flex-row items-center">
           {state.routes.map((route, i) => {
             const meta = META[route.name];

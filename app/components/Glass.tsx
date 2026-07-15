@@ -24,12 +24,12 @@ type Props = ViewProps & {
 const SHEEN_COLORS = ['#FFFFFF14', '#FFFFFF00'] as const;
 
 // Adaptive glassmorphism surface. iOS → real expo-blur BlurView with a
-// near-colorless tint; Android (and any overMap usage) → translucent white
-// fill + hairline border + soft shadow, same visual language, no blur cost.
-// Layout (padding, gap, flex) comes from `className`; the glass shell
+// near-colorless dark tint; Android (and any overMap usage) → translucent
+// dark fill + hairline border + soft shadow, same visual language, no blur
+// cost. Layout (padding, gap, flex) comes from `className`; the glass shell
 // (radius/border/fill/shadow) is style-driven so it stays consistent
 // everywhere.
-export function Glass({ overMap = false, intensity = 24, radius = 24, style, className, children, ...rest }: Props) {
+export function Glass({ overMap = false, intensity = 40, radius = 24, style, className, children, ...rest }: Props) {
   const useBlur = Platform.OS === 'ios' && !overMap;
 
   return (
@@ -63,7 +63,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
-  // Android / overMap: translucent white fill stands in for the blur.
+  // Android / overMap: translucent dark fill stands in for the blur — this
+  // is what actually darkens/obscures the map (or whatever's behind), since
+  // Android has no real blur in this path.
   faux: {
     backgroundColor: colors.glassTint,
   },

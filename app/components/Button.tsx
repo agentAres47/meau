@@ -12,7 +12,11 @@ type Props = PressableProps & {
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   primary: 'bg-accentCta',
-  secondary: 'bg-glassTint border border-glassBorder',
+  // Deliberately NOT glassTint: that token is tuned dark/opaque to darken
+  // whatever's behind floating glass over the map, which would make a
+  // button on the plain near-black background nearly invisible. surface2
+  // is a genuinely raised, distinguishable flat tone instead.
+  secondary: 'bg-surface2 border border-glassBorder',
   ghost: 'bg-transparent',
 };
 
