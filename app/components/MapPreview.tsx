@@ -1,19 +1,7 @@
 import { StyleSheet } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Polyline, Marker, type LatLng } from 'react-native-maps';
 import { colors } from '../theme/tokens';
-
-// Dark Google Maps style tuned to the app palette (warm plum-dark). Deeper
-// refinement (reduced labels/POIs, custom markers) lands in the map-first
-// redesign phases.
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: colors.surface }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: colors.muted }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: colors.bg }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: colors.surface2 }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: colors.bg }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: colors.surface }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: colors.surface2 }] },
-];
+import { DARK_MAP_STYLE } from '../lib/mapStyle';
 
 type Props = {
   region: { latitude: number; longitude: number; latitudeDelta?: number; longitudeDelta?: number };

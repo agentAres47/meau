@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ElementRef } from 'react';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect, Redirect } from 'expo-router';
 import { Screen } from '../../components/Screen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BottomSheet, { BottomSheetView, BottomSheetModal } from '@gorhom/bottom-sheet';
+import type MapView from 'react-native-maps';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Circle, MapPin, Clock } from 'lucide-react-native';
-import { colors } from '../../theme/tokens';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { Card } from '../../components/Card';
+import { Clock } from 'lucide-react-native';
+import { colors, radius } from '../../theme/tokens';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
-import { PlaceRow } from '../../components/PlaceRow';
-import { PriceSlider } from '../../components/PriceSlider';
+import { HomeMap } from '../../components/HomeMap';
+import { FloatingSearchCard } from '../../components/FloatingSearchCard';
+import { FareConfirmSheet } from '../../components/FareConfirmSheet';
 import { useSession } from '../../store/session';
 import { useRideDraft } from '../../store/rideDraft';
 import { useSearch } from '../../store/search';
-import { getRoute, suggestedPrice } from '../../lib/maps';
+import { getRoute, suggestedPrice, currentPlace, decodeRoute, type Place, type Route } from '../../lib/maps';
 import { createRideRequest, matchRides, getActiveRequest, getMatchId, type ActiveRequest } from '../../lib/passenger';
 import { formatDepart } from '../../lib/format';
 
@@ -66,16 +68,47 @@ export default function Passenger() {
   return <SearchForm />;
 }
 
+// Fallback map center if location permission is denied/unavailable — Mumbai,
+// wide enough to be a reasonable starting point rather than an empty ocean.
+const DEFAULT_REGION = { latitude: 19.076, longitude: 72.8777, latitudeDelta: 0.15, longitudeDelta: 0.15 };
+const SHEET_SNAP_POINTS = [180, 320];
+
+function regionFor(a: Place, b: Place) {
+  return {
+    latitude: (a.latitude + b.latitude) / 2,
+    longitude: (a.longitude + b.longitude) / 2,
+    latitudeDelta: Math.abs(a.latitude - b.latitude) * 1.6 + 0.02,
+    longitudeDelta: Math.abs(a.longitude - b.longitude) * 1.6 + 0.02,
+  };
+}
+
+// Map-first passenger home: full-screen interactive map is the canvas: a
+// floating glass search card (pickup/drop — still opens the existing
+// location-picker modal, unchanged nav) sits on top, and a persistent glass
+// bottom sheet (When + Find rides) floats over the bottom. Tapping "Find
+// rides" opens a separate fare-confirm drawer (offer slider) rather than
+// searching immediately; only confirming there fires the actual request —
+// same matching/backend logic as before, just re-presented.
 function SearchForm() {
   const profile = useSession((s) => s.profile);
   const { origin: pickup, dest: drop, reset } = useRideDraft();
   const setResults = useSearch((s) => s.setResults);
+  const insets = useSafeAreaInsets();
 
+  const mapRef = useRef<MapView>(null);
+  const fareSheetRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
+
+  const [currentLocation, setCurrentLocation] = useState<Place | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
   const [now, setNow] = useState(true);
   const [when, setWhen] = useState(() => new Date(Date.now() + 10 * 60_000));
   const [offer, setOffer] = useState(60);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Separate error states so a search failure (shown in the fare-confirm
+  // drawer) never bleeds through into the always-visible persistent sheet
+  // behind it, and vice versa.
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   // Reset once on mount only — NOT on every focus. The location-picker modal
   // returns focus to this same (still-mounted) screen when it closes, and a
@@ -85,8 +118,44 @@ function SearchForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Center on the user's current location once, on mount (also drops the
+  // "you are here" marker). Silently falls back to a default region if
+  // permission is denied — never blocks the screen. Reads the draft store's
+  // live state (not the closed-over pickup/drop) since this effect's closure
+  // is fixed at the first render — a remount with stale leftover draft state
+  // would otherwise read pre-reset values here (same pattern as driver.tsx's
+  // getState() fix for an analogous stale-closure issue).
   useEffect(() => {
-    if (pickup && drop) getRoute(pickup, drop).then((r) => setOffer(suggestedPrice(r.distanceKm)));
+    currentPlace().then((p) => {
+      setCurrentLocation(p);
+      const draft = useRideDraft.getState();
+      if (p && !draft.origin && !draft.dest) {
+        mapRef.current?.animateToRegion(
+          { latitude: p.latitude, longitude: p.longitude, latitudeDelta: 0.03, longitudeDelta: 0.03 },
+          600
+        );
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Camera + route preview follow whichever of pickup/drop are set.
+  useEffect(() => {
+    if (pickup && drop) {
+      getRoute(pickup, drop).then((r) => {
+        setOffer(suggestedPrice(r.distanceKm));
+        setRoute(r);
+      });
+      mapRef.current?.animateToRegion(regionFor(pickup, drop), 700);
+    } else {
+      setRoute(null);
+      if (pickup) {
+        mapRef.current?.animateToRegion(
+          { latitude: pickup.latitude, longitude: pickup.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+          600
+        );
+      }
+    }
   }, [pickup, drop]);
 
   function pickWhen() {
@@ -111,78 +180,102 @@ function SearchForm() {
     });
   }
 
-  async function findRides() {
-    setError(null);
-    if (!pickup || !drop) return setError('Set your pickup and drop.');
+  function openFareConfirm() {
+    setFormError(null);
+    if (!pickup || !drop) return setFormError('Set your pickup and drop.');
+    setConfirmError(null);
+    fareSheetRef.current?.present();
+  }
+
+  async function confirmAndFindRides() {
+    setConfirmError(null);
     setLoading(true);
     try {
       const desiredTime = now ? new Date() : when;
       const requestId = await createRideRequest({
         passengerId: profile!.id,
-        pickup,
-        drop,
+        pickup: pickup!,
+        drop: drop!,
         desiredTime,
         offeredPrice: offer,
       });
       const matches = await matchRides(requestId);
-      setResults({ requestId, pickup, drop, offer, matches });
+      setResults({ requestId, pickup: pickup!, drop: drop!, offer, matches });
+      fareSheetRef.current?.dismiss();
       router.push('/ride/search-results');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setConfirmError(e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Screen edges={['top']}>
-      <ScreenHeader title={(profile?.full_name ?? 'Rider').split(' ')[0]} subtitle="Find a ride" />
-      <ScrollView contentContainerClassName="px-6 pt-2 pb-28 gap-5" keyboardShouldPersistTaps="handled">
-        <Card className="gap-3">
-          <PlaceRow
-            icon={<Circle color={colors.accent} size={14} />}
-            label="Pickup"
-            value={pickup?.label}
-            onPress={() => router.push('/modal/location-picker?field=origin')}
-          />
-          <View className="h-px bg-glassBorder ml-7" />
-          <PlaceRow
-            icon={<MapPin color={colors.success} size={16} />}
-            label="Drop"
-            value={drop?.label}
-            onPress={() => router.push('/modal/location-picker?field=dest')}
-          />
-        </Card>
+    <View style={{ flex: 1 }}>
+      <HomeMap
+        ref={mapRef}
+        initialRegion={DEFAULT_REGION}
+        currentLocation={currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
+        pickup={pickup ? { latitude: pickup.latitude, longitude: pickup.longitude } : null}
+        drop={drop ? { latitude: drop.latitude, longitude: drop.longitude } : null}
+        path={route ? decodeRoute(route.encoded) : undefined}
+      />
 
-        <View className="gap-2">
-          <Text className="text-sm text-muted">When</Text>
-          <View className="flex-row items-center gap-2">
-            <Chip label="Now" selected={now} onPress={() => setNow(true)} />
-            <Pressable onPress={pickWhen} accessibilityRole="button" className="flex-1">
-              <View
-                className={`flex-row items-center gap-2 rounded-full px-4 py-2 border ${
-                  !now ? 'bg-accent border-accent' : 'bg-surface2 border-surface2'
-                }`}
-              >
-                <Clock color={now ? colors.text : colors.bg} size={16} />
-                <Text className={`text-sm font-medium ${now ? 'text-text' : 'text-bg'}`}>
-                  {now ? 'Pick a time' : formatDepart(when)}
-                </Text>
-              </View>
-            </Pressable>
+      <View style={{ position: 'absolute', top: insets.top + 12, left: 0, right: 0 }} className="px-6">
+        <FloatingSearchCard
+          pickupLabel={pickup?.label}
+          dropLabel={drop?.label}
+          onPressPickup={() => router.push('/modal/location-picker?field=origin')}
+          onPressDrop={() => router.push('/modal/location-picker?field=dest')}
+        />
+      </View>
+
+      <BottomSheet
+        snapPoints={SHEET_SNAP_POINTS}
+        index={0}
+        enableDynamicSizing={false}
+        enablePanDownToClose={false}
+        backgroundStyle={{
+          backgroundColor: colors.surface,
+          borderTopLeftRadius: radius.xxl,
+          borderTopRightRadius: radius.xxl,
+        }}
+        handleIndicatorStyle={{ backgroundColor: colors.glassBorder }}
+      >
+        <BottomSheetView className="px-6 pt-2 pb-8 gap-4">
+          <View className="gap-2">
+            <Text className="text-sm text-muted">When</Text>
+            <View className="flex-row items-center gap-2">
+              <Chip label="Now" selected={now} onPress={() => setNow(true)} />
+              <Pressable onPress={pickWhen} accessibilityRole="button" className="flex-1">
+                <View
+                  className={`flex-row items-center gap-2 rounded-full px-4 py-2 border ${
+                    !now ? 'bg-accent border-accent' : 'bg-surface2 border-surface2'
+                  }`}
+                >
+                  <Clock color={now ? colors.text : colors.bg} size={16} />
+                  <Text className={`text-sm font-medium ${now ? 'text-text' : 'text-bg'}`}>
+                    {now ? 'Pick a time' : formatDepart(when)}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
           </View>
-        </View>
 
-        <Card>
-          <Text className="text-muted text-sm mb-1">Your offer per seat</Text>
-          <Text className="text-muted text-xs mb-2">What you'll pay for your part of the trip.</Text>
-          <PriceSlider value={offer} onChange={setOffer} />
-        </Card>
+          {formError ? <Text className="text-danger text-sm">{formError}</Text> : null}
 
-        {error ? <Text className="text-danger text-sm">{error}</Text> : null}
+          <Button label="Find rides" onPress={openFareConfirm} />
+        </BottomSheetView>
+      </BottomSheet>
 
-        <Button label="Find rides" loading={loading} onPress={findRides} />
-      </ScrollView>
-    </Screen>
+      <FareConfirmSheet
+        ref={fareSheetRef}
+        offer={offer}
+        onOfferChange={setOffer}
+        onConfirm={confirmAndFindRides}
+        loading={loading}
+        error={confirmError}
+      />
+    </View>
   );
 }
