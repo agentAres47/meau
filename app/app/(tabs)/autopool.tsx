@@ -157,7 +157,7 @@ function Picker({
   return (
     <Screen edges={['top']}>
       <ScreenHeader title="Auto Pool" subtitle="Share an auto" />
-      <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-5">
+      <ScrollView contentContainerClassName="px-6 pt-2 pb-28 gap-5">
         {notice ? <Text className="text-danger text-sm">{notice}</Text> : null}
 
         <View className="flex-row gap-2">

@@ -137,7 +137,7 @@ function SearchForm() {
   return (
     <Screen edges={['top']}>
       <ScreenHeader title={(profile?.full_name ?? 'Rider').split(' ')[0]} subtitle="Find a ride" />
-      <ScrollView contentContainerClassName="px-6 pt-2 pb-4 gap-5" keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerClassName="px-6 pt-2 pb-28 gap-5" keyboardShouldPersistTaps="handled">
         <Card className="gap-3">
           <PlaceRow
             icon={<Circle color={colors.accent} size={14} />}

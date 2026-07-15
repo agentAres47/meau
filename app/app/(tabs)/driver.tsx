@@ -92,7 +92,7 @@ export default function Driver() {
           <TokenCardSkeleton />
         </View>
       ) : token ? (
-        <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-4">
+        <ScrollView contentContainerClassName="px-6 pt-2 pb-28 gap-4">
           <IncomingRequests driverId={profile.id} onMatched={refresh} />
           <MatchedPassengers passengers={matched} />
           <ActiveTokenCard token={token} onCancel={onCancel} busy={busy} />
