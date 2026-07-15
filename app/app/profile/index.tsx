@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { ChevronLeft, ShieldCheck, Car, Clock, CircleAlert } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
@@ -35,7 +35,7 @@ export default function Profile() {
   if (!profile) return null;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <View className="px-4 pt-2 pb-2 flex-row items-center">
         <Pressable
           onPress={() => router.back()}
@@ -71,7 +71,7 @@ export default function Profile() {
 
         <Button label="Sign out" variant="secondary" onPress={signOut} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

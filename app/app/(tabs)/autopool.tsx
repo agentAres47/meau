@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -63,9 +63,9 @@ export default function AutoPool() {
 
   if (session === undefined) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+      <Screen className="items-center justify-center" edges={['top']}>
         <ActivityIndicator color={colors.accent} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -95,7 +95,7 @@ export default function AutoPool() {
 function Waiting({ session, onCancel }: { session: PoolSession; onCancel: () => void }) {
   const route = PRESET_ROUTES.find((r) => r.code === session.route_code);
   return (
-    <SafeAreaView className="flex-1 bg-bg items-center justify-center px-6" edges={['top', 'bottom']}>
+    <Screen className="items-center justify-center px-6" edges={['top', 'bottom']}>
       <View className="items-center gap-6">
         <Radar icon={Users} />
         <View className="items-center gap-1">
@@ -108,7 +108,7 @@ function Waiting({ session, onCancel }: { session: PoolSession; onCancel: () => 
         </View>
         <Button label="Cancel" variant="ghost" onPress={onCancel} />
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -155,7 +155,7 @@ function Picker({
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+    <Screen edges={['top']}>
       <ScreenHeader title="Auto Pool" subtitle="Share an auto" />
       <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-5">
         {notice ? <Text className="text-danger text-sm">{notice}</Text> : null}
@@ -205,6 +205,6 @@ function Picker({
 
         <Button label={mode === 'now' ? 'Find a pool now' : 'Join this slot'} loading={busy} onPress={start} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }

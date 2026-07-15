@@ -1,5 +1,6 @@
 import { View, Text } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { colors } from '../theme/tokens';
 
 type Props = {
   value: number;
@@ -19,9 +20,9 @@ export function PriceSlider({ value, onChange, min = 20, max = 300, step = 5 }: 
         minimumValue={min}
         maximumValue={max}
         step={step}
-        minimumTrackTintColor="#6C7BFF"
-        maximumTrackTintColor="#1F2630"
-        thumbTintColor="#6C7BFF"
+        minimumTrackTintColor={colors.accent}
+        maximumTrackTintColor={colors.surface2}
+        thumbTintColor={colors.accent}
       />
       <View className="flex-row justify-between">
         <Text className="text-muted text-xs">₹{min}</Text>

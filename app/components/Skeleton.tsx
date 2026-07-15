@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { ViewProps } from 'react-native';
 import { useReducedMotion } from '../lib/reducedMotion';
+import { colors } from '../theme/tokens';
 
 type Props = ViewProps & {
   width?: number | `${number}%`;
@@ -27,7 +28,7 @@ export function Skeleton({ width = '100%', height = 16, radius = 8, style, ...re
 
   return (
     <Animated.View
-      style={[{ width, height, borderRadius: radius, backgroundColor: '#1F2630' }, animatedStyle, style]}
+      style={[{ width, height, borderRadius: radius, backgroundColor: colors.surface2 }, animatedStyle, style]}
       {...rest}
     />
   );

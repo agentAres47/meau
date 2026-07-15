@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../../components/Screen';
 import { ShieldCheck } from 'lucide-react-native';
 import { colors } from '../../../theme/tokens';
 import { Avatar } from '../../../components/Avatar';
@@ -79,15 +79,15 @@ export default function MatchedRide() {
 
   if (status === undefined) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+      <Screen className="items-center justify-center" edges={['top']}>
         <ActivityIndicator color={colors.accent} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!status) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center px-6" edges={['top']}>
+      <Screen className="items-center justify-center px-6" edges={['top']}>
         <Text className="text-muted text-sm text-center">Couldn't load this ride.</Text>
         <Button
           label="Back"
@@ -95,16 +95,16 @@ export default function MatchedRide() {
           className="mt-4"
           onPress={() => router.replace('/(tabs)/passenger')}
         />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (status.request_status !== 'matched') {
     // Already cancelled/expired -- the effect above is redirecting us away.
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+      <Screen className="items-center justify-center" edges={['top']}>
         <ActivityIndicator color={colors.accent} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -128,7 +128,7 @@ export default function MatchedRide() {
       : undefined;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <ScrollView contentContainerClassName="px-6 pt-4 pb-6 gap-4">
         <Animated.View style={entranceStyle} className="items-center gap-2">
           <Badge label="MATCHED" tone="success" />
@@ -181,6 +181,6 @@ export default function MatchedRide() {
         <Button label="Message" onPress={() => router.push(`/match/${matchId}`)} />
         <Button label="Cancel ride" variant="secondary" loading={busy} onPress={onCancel} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }

@@ -1,4 +1,6 @@
-import { Pressable, Text, ActivityIndicator, type PressableProps } from 'react-native';
+import { Text, ActivityIndicator, type PressableProps } from 'react-native';
+import { PressableScale } from './PressableScale';
+import { colors } from '../theme/tokens';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 
@@ -9,8 +11,8 @@ type Props = PressableProps & {
 };
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: 'bg-accent',
-  secondary: 'bg-surface2 border border-surface2',
+  primary: 'bg-accentCta',
+  secondary: 'bg-glassTint border border-glassBorder',
   ghost: 'bg-transparent',
 };
 
@@ -20,19 +22,29 @@ const VARIANT_TEXT_CLASSES: Record<Variant, string> = {
   ghost: 'text-accent',
 };
 
+// Soft pink glow under the primary CTA — the one place accent gets to bloom.
+const ctaGlow = {
+  shadowColor: colors.accentCta,
+  shadowOpacity: 0.4,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 8,
+};
+
 export function Button({ label, variant = 'primary', loading, disabled, className, ...rest }: Props) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       disabled={disabled || loading}
-      className={`rounded-xl px-5 py-3.5 items-center justify-center active:scale-[0.97] ${VARIANT_CLASSES[variant]} ${disabled ? 'opacity-40' : ''} ${className ?? ''}`}
+      style={variant === 'primary' && !disabled ? ctaGlow : undefined}
+      className={`rounded-pill px-5 py-3.5 items-center justify-center ${VARIANT_CLASSES[variant]} ${disabled ? 'opacity-40' : ''} ${className ?? ''}`}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#0E1116' : '#EDF1F5'} />
+        <ActivityIndicator color={variant === 'primary' ? colors.bg : colors.text} />
       ) : (
         <Text className={`text-base font-semibold ${VARIANT_TEXT_CLASSES[variant]}`}>{label}</Text>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }

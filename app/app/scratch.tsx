@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, View, Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../components/Screen';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Sheet } from '../components/Sheet';
@@ -21,7 +21,7 @@ export default function Scratch() {
   const [seats, setSeats] = useState(3);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <ScrollView contentContainerClassName="p-4 gap-4">
         <Text className="text-text text-xl font-bold">Component gallery</Text>
 
@@ -74,6 +74,6 @@ export default function Scratch() {
         <Text className="text-text text-lg font-semibold mb-2">A sheet</Text>
         <Text className="text-muted">Tap outside or drag the handle to dismiss.</Text>
       </Sheet>
-    </SafeAreaView>
+    </Screen>
   );
 }

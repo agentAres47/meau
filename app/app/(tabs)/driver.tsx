@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, ScrollView, Text } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { Car, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -66,7 +66,7 @@ export default function Driver() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+    <Screen edges={['top']}>
       <ScreenHeader title="Driver" subtitle="Offer a ride" />
 
       {!profile?.is_driver_verified ? (
@@ -107,7 +107,7 @@ export default function Driver() {
           <Button label="Post a ride" onPress={() => router.push('/ride/post')} />
         </View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 

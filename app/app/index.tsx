@@ -1,6 +1,7 @@
-import { View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
 import { colors } from '../theme/tokens';
+import { Screen } from '../components/Screen';
 import { useSession } from '../store/session';
 
 // Session gate (04-APP-STRUCTURE.md). Reads auth/profile status and redirects.
@@ -9,9 +10,9 @@ export default function Index() {
 
   if (status === 'loading') {
     return (
-      <View className="flex-1 bg-bg items-center justify-center">
+      <Screen edges={[]} className="items-center justify-center">
         <ActivityIndicator color={colors.accent} />
-      </View>
+      </Screen>
     );
   }
 

@@ -1,15 +1,16 @@
 import { View, Text } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
 
 export default function Welcome() {
   return (
-    <SafeAreaView className="flex-1 bg-bg px-6" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']} className="px-6">
       <View className="flex-1 justify-end pb-8">
         <Text className="text-text text-xxl font-bold">Meau</Text>
-        <Text className="text-muted text-base mt-2 mb-10">
-          Ride together with people who already belong here.
+        <Text className="text-accent text-lg font-semibold mt-1">Find your Humsafar.</Text>
+        <Text className="text-muted text-sm mt-3 mb-10">
+          Verified rides with people who already belong at Amity Mumbai.
         </Text>
         <Button
           label="Login with Amizone"
@@ -20,6 +21,6 @@ export default function Welcome() {
           Only verified Amity Mumbai members can join.
         </Text>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect, Redirect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Circle, MapPin, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
@@ -40,9 +40,9 @@ export default function Passenger() {
 
   if (active === undefined) {
     return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+      <Screen className="items-center justify-center" edges={['top']}>
         <ActivityIndicator color={colors.accent} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -55,9 +55,9 @@ export default function Passenger() {
   if (active?.status === 'matched') {
     if (!matchId) {
       return (
-        <SafeAreaView className="flex-1 bg-bg items-center justify-center" edges={['top']}>
+        <Screen className="items-center justify-center" edges={['top']}>
           <ActivityIndicator color={colors.accent} />
-        </SafeAreaView>
+        </Screen>
       );
     }
     return <Redirect href={`/ride/matched/${matchId}`} />;
@@ -135,7 +135,7 @@ function SearchForm() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+    <Screen edges={['top']}>
       <ScreenHeader title={(profile?.full_name ?? 'Rider').split(' ')[0]} subtitle="Find a ride" />
       <ScrollView contentContainerClassName="px-6 pt-2 pb-4 gap-5" keyboardShouldPersistTaps="handled">
         <Card className="gap-3">
@@ -183,6 +183,6 @@ function SearchForm() {
 
         <Button label="Find rides" loading={loading} onPress={findRides} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }

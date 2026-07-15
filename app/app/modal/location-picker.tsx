@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, FlatList } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import * as Location from 'expo-location';
 import { X, MapPin, LocateFixed, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
@@ -90,7 +90,7 @@ export default function LocationPicker() {
   const showRecent = query.trim().length < 3 && recent.length > 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <View className="px-4 pt-2 pb-2 flex-row items-center">
         <Pressable
           onPress={() => router.back()}
@@ -171,6 +171,6 @@ export default function LocationPicker() {
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }

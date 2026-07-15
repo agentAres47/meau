@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { ChevronLeft, Search, BadgeCheck, Route } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Card } from '../../components/Card';
@@ -43,7 +43,7 @@ export default function SearchResults() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <View className="px-4 pt-2 pb-2 flex-row items-center">
         <Pressable
           onPress={backToSearch}
@@ -82,7 +82,7 @@ export default function SearchResults() {
           ))}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 

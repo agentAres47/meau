@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TextInput, View, Text, type TextInputProps } from 'react-native';
+import { colors } from '../theme/tokens';
 
 type Props = TextInputProps & {
   label?: string;
@@ -13,7 +14,7 @@ export function Input({ label, error, className, onFocus, onBlur, ...rest }: Pro
     <View>
       {label ? <Text className="text-sm text-muted mb-1.5">{label}</Text> : null}
       <TextInput
-        placeholderTextColor="#8A94A3"
+        placeholderTextColor={colors.muted}
         onFocus={(e) => {
           setFocused(true);
           onFocus?.(e);

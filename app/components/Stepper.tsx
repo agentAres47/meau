@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from 'react-native';
 import { Minus, Plus } from 'lucide-react-native';
+import { colors } from '../theme/tokens';
 
 type Props = {
   value: number;
@@ -17,7 +18,7 @@ export function Stepper({ value, onChange, min = 1, max = 6 }: Props) {
         onPress={() => onChange(value - 1)}
         className={`p-3 active:scale-[0.97] ${value <= min ? 'opacity-30' : ''}`}
       >
-        <Minus color="#EDF1F5" size={18} />
+        <Minus color={colors.text} size={18} />
       </Pressable>
       <Text className="text-text text-base font-semibold w-8 text-center">{value}</Text>
       <Pressable
@@ -26,7 +27,7 @@ export function Stepper({ value, onChange, min = 1, max = 6 }: Props) {
         onPress={() => onChange(value + 1)}
         className={`p-3 active:scale-[0.97] ${value >= max ? 'opacity-30' : ''}`}
       >
-        <Plus color="#EDF1F5" size={18} />
+        <Plus color={colors.text} size={18} />
       </Pressable>
     </View>
   );

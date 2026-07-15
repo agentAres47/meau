@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ChevronLeft, Circle, MapPin, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
@@ -117,7 +117,7 @@ export default function PostRide() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <View className="px-4 pt-2 pb-2 flex-row items-center">
         <Pressable
           onPress={() => router.back()}
@@ -195,6 +195,6 @@ export default function PostRide() {
           <Button label="Go live" loading={loading} onPress={goLive} />
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }

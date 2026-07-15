@@ -2,6 +2,7 @@ import { View, Text } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Inbox } from 'lucide-react-native';
 import { Button } from './Button';
+import { colors } from '../theme/tokens';
 
 type Props = {
   icon?: LucideIcon;
@@ -15,7 +16,7 @@ export function EmptyState({ icon: Icon = Inbox, title, description, actionLabel
   return (
     <View className="items-center justify-center py-12 px-6">
       <View className="bg-surface2 rounded-full p-4 mb-4">
-        <Icon color="#8A94A3" size={28} />
+        <Icon color={colors.muted} size={28} />
       </View>
       <Text className="text-text text-lg font-semibold text-center">{title}</Text>
       {description ? (

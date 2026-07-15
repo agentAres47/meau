@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { ChevronLeft, ShieldCheck } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
@@ -129,7 +129,7 @@ export default function AmizoneWebview() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <View className="px-4 pt-2 pb-2 flex-row items-center">
         <Pressable
           onPress={() => router.back()}
@@ -186,6 +186,6 @@ export default function AmizoneWebview() {
           <Button label="Try again" variant="secondary" onPress={retry} />
         </View>
       ) : null}
-    </SafeAreaView>
+    </Screen>
   );
 }

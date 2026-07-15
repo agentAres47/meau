@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { ChevronLeft, Send, ShieldCheck, Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
@@ -142,7 +142,7 @@ export default function MatchChat() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+      <Screen edges={['top']}>
         <View className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2">
           <Skeleton width={26} height={26} radius={13} />
           <Skeleton width={40} height={40} radius={20} />
@@ -156,12 +156,12 @@ export default function MatchChat() {
           <Skeleton width="40%" height={36} radius={18} style={{ alignSelf: 'flex-end' }} />
           <Skeleton width="60%" height={36} radius={18} style={{ alignSelf: 'flex-start' }} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg" edges={['top']}>
+    <Screen edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2">
         <Pressable onPress={onBack} accessibilityLabel="Back" className="active:opacity-70 -ml-1">
@@ -262,7 +262,7 @@ export default function MatchChat() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

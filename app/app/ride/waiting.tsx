@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
 import { Radar } from '../../components/Radar';
 import { getRequestState, subscribeRequest, getMatchId, cancelRequest } from '../../lib/passenger';
@@ -40,7 +40,7 @@ export default function Waiting() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg items-center justify-center px-6" edges={['top', 'bottom']}>
+    <Screen className="items-center justify-center px-6" edges={['top', 'bottom']}>
       <View className="items-center gap-6">
         <Radar />
         <View className="items-center gap-1">
@@ -49,6 +49,6 @@ export default function Waiting() {
         </View>
         <Button label="Cancel" variant="ghost" onPress={onCancel} />
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
