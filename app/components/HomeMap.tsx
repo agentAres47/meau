@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Polyline, type LatLng, type Region } from 'react-native-maps';
 import { colors } from '../theme/tokens';
@@ -26,6 +26,14 @@ export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
   { initialRegion, currentLocation, pickup, drop, path, mapPadding },
   ref
 ) {
+  // react-native-maps (Android) crashes with a NullPointerException if a
+  // mapPadding update is applied before the native GoogleMap object exists
+  // (react-native-maps#5822 — a confirmed, still-unfixed upstream bug: our
+  // padding is recomputed from onLayout state and updates almost immediately
+  // after mount, racing the native map's async init). Withholding mapPadding
+  // until onMapReady fires sidesteps the race entirely.
+  const [mapReady, setMapReady] = useState(false);
+
   return (
     <MapView
       ref={ref}
@@ -33,7 +41,8 @@ export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
       customMapStyle={DARK_MAP_STYLE}
       style={StyleSheet.absoluteFill}
       initialRegion={initialRegion}
-      mapPadding={mapPadding}
+      mapPadding={mapReady ? mapPadding : undefined}
+      onMapReady={() => setMapReady(true)}
       showsUserLocation={false}
       showsMyLocationButton={false}
       showsCompass={false}
