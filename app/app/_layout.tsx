@@ -21,6 +21,12 @@ function useAuthGuard() {
   useEffect(() => {
     if (status === 'loading') return;
 
+    // Admin is a second, separate auth branch (a real Supabase Auth session
+    // with no `profiles` row) -- it must not be funneled through the student
+    // onboarding/ready state machine, which would otherwise see "session but
+    // no profile" and bounce it back to the student welcome screen.
+    if (segments[0] === '(admin)') return;
+
     const inOnboarding = segments[0] === '(onboarding)';
     const atCompleteProfile = inOnboarding && segments[1] === 'complete-profile';
     const inAuthScreens =
