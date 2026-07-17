@@ -20,7 +20,11 @@ alter table admins enable row level security;
 -- via the API. Membership is granted manually in the SQL editor:
 --   insert into admins (auth_user_id) values ('<uuid from auth.users>');
 
-create or replace function is_admin() returns boolean language sql stable as $$
+-- security definer is required here, not optional: admins has RLS enabled
+-- with zero policies (nobody, including admins, can read it directly), so a
+-- plain (non-definer) function would have its own internal select blocked by
+-- that same lockout and always see zero rows -- i.e. always return false.
+create or replace function is_admin() returns boolean language sql stable security definer as $$
   select exists (select 1 from admins where auth_user_id = auth.uid())
 $$;
 grant execute on function is_admin() to authenticated;
