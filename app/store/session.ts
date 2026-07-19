@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { unregisterPushToken } from '../lib/notifications';
 
 export type Profile = {
   id: string;
@@ -89,6 +90,11 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   signOut: async () => {
+    // Shed THIS device's push token first (while the session still satisfies the
+    // owner-scoped RLS) so a shared device signing in as someone else later
+    // doesn't keep delivering this user's private notifications. Best-effort.
+    const { profile } = get();
+    if (profile) await unregisterPushToken(profile.id).catch(() => {});
     await supabase.auth.signOut();
     set({ session: null, profile: null, status: 'onboarding' });
   },

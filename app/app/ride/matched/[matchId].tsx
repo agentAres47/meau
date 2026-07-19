@@ -16,6 +16,8 @@ import { subscribeRequest } from '../../../lib/passenger';
 import { decodeRoute } from '../../../lib/maps';
 import { formatDepart } from '../../../lib/format';
 import { useReducedMotion } from '../../../lib/reducedMotion';
+import { useSession } from '../../../store/session';
+import { ensureNotificationPermission } from '../../../lib/notifications';
 
 // Shared by both sides of a match so driver + passenger see the exact same
 // "we're on the same page" screen: each other's info, the route, a seat
@@ -24,9 +26,16 @@ import { useReducedMotion } from '../../../lib/reducedMotion';
 // gives the driver's seat back (cancel_match RPC).
 export default function MatchedRide() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
+  const profileId = useSession((s) => s.profile?.id);
   const [status, setStatus] = useState<MatchStatus | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // F7: first time a user reaches a match is the contextual moment to ask for
+  // notification permission (not cold on launch). No-op once decided.
+  useEffect(() => {
+    if (profileId) ensureNotificationPermission(profileId);
+  }, [profileId]);
 
   // Signature match-moment entrance (11-UI-DESIGN.md) — a quiet spring/fade
   // on the "you matched" block, once, on mount. Everything else on this

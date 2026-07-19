@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { rankMatches, type Candidate, type RequestGeo } from './match.js';
+import { startNotificationDrainer } from './notify.js';
 
 const PORT = Number(process.env.PORT ?? 8081);
 const TIME_WINDOW_MIN = Number(process.env.TIME_WINDOW_MIN ?? 30);
@@ -93,18 +94,25 @@ app.post('/accept', async (req, res) => {
   return res.json({ match_id: data });
 });
 
-// Expire past-departure tokens / stale requests + pool sessions every 60s.
-setInterval(() => {
-  admin.rpc('expire_stale_rows').then(({ error }) => {
-    if (error) console.error('expire_stale_rows failed:', error.message);
-  });
-}, 60_000);
-
-// Group waiting auto-pool sessions into pools (specs/07-AUTO-POOL.md).
+// Scheduling — see PHASE0_DESIGN.md.
+//
+// expire_stale_rows() is NO LONGER scheduled here. It is correctness-critical
+// (stale 'live' tokens pollute matching) and must not depend on this single
+// process, so it now runs on pg_cron (migration 0016) as its sole owner.
+//
+// run_autopool_matching() stays here as the PRIMARY 5s low-latency path for the
+// "match me now" pool flow — pg_cron's classic 60s granularity would be too slow
+// for it. Migration 0016 adds a 60s pg_cron BACKSTOP so pooling still happens
+// (within <=60s) if this process is down; double-execution is safe because the
+// function uses FOR UPDATE SKIP LOCKED + per-profile dedup (idempotent).
 setInterval(() => {
   admin.rpc('run_autopool_matching').then(({ error }) => {
     if (error) console.error('run_autopool_matching failed:', error.message);
   });
 }, 5_000);
+
+// F7 push: drain notifications_outbox -> Expo Push API every 3s. Best-effort
+// (Realtime is the reliable in-app path). See notify.ts + migrations 0017/0018.
+startNotificationDrainer(admin, 3_000);
 
 app.listen(PORT, () => console.log(`matching listening on :${PORT}`));

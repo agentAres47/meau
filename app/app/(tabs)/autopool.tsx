@@ -44,8 +44,11 @@ export default function AutoPool() {
   // While waiting, watch our own session row for a match (or expiry/cancel).
   useEffect(() => {
     if (!session || session.status !== 'waiting' || !profile) return;
-    return subscribePoolSession(session.id, async () => {
+    let active = true;
+
+    const onChange = async () => {
       const s = await getActivePoolSession(profile.id);
+      if (!active) return;
       if (!s) {
         setNotice('No one right now — try scheduled or retry.');
         setSession(null);
@@ -54,11 +57,35 @@ export default function AutoPool() {
       if (s.status === 'matched' && s.pool_group_id) {
         matchHaptic();
         const matchId = await getPoolMatchId(s.pool_group_id);
-        if (matchId) router.replace(`/match/${matchId}`);
+        if (active && matchId) router.replace(`/match/${matchId}`);
         return;
       }
       setSession(s);
-    });
+    };
+
+    const unsub = subscribePoolSession(session.id, onChange);
+
+    // One-shot reconcile to close a subscribe-after-match race: a scheduler
+    // tick (the 5s Node loop, or the 60s pg_cron backstop) could pool this
+    // session in the gap between createPoolSession committing and this
+    // subscription attaching — that 'matched' Realtime event would fire before
+    // we're listening and be missed, stranding us on "Searching…". Re-reading
+    // once here catches a match that already happened. Guarded to only act on a
+    // matched/gone transition (never setSession for the still-waiting case) so
+    // it adds no re-render churn. See PHASE0_FAILURE_ANALYSIS.md.
+    (async () => {
+      const s = await getActivePoolSession(profile.id);
+      if (active && s?.status === 'matched' && s.pool_group_id) {
+        matchHaptic();
+        const matchId = await getPoolMatchId(s.pool_group_id);
+        if (active && matchId) router.replace(`/match/${matchId}`);
+      }
+    })();
+
+    return () => {
+      active = false;
+      unsub();
+    };
   }, [session, profile]);
 
   if (session === undefined) {
