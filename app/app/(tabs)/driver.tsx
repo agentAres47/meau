@@ -1,35 +1,58 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ElementRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView, BottomSheetModal } from '@gorhom/bottom-sheet';
 import type MapView from 'react-native-maps';
 import { Car, Clock } from 'lucide-react-native';
-import { colors, darkGlass, radius, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
+import { DarkGlass } from '../../components/DarkGlass';
 import { HomeMap } from '../../components/HomeMap';
 import { Avatar } from '../../components/Avatar';
 import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
+import { Chip } from '../../components/Chip';
 import { Skeleton } from '../../components/Skeleton';
+import { FloatingSearchCard } from '../../components/FloatingSearchCard';
+import { SeatsConfirmSheet } from '../../components/SeatsConfirmSheet';
+import { TimePickerSheet } from '../../components/TimePickerSheet';
 import { IncomingRequests } from '../../components/IncomingRequests';
 import { MatchedPassengers } from '../../components/MatchedPassengers';
 import { DOCK_MARGIN, DOCK_HEIGHT } from '../../components/TabBar';
 import { useSession } from '../../store/session';
+import { useDriverRideDraft } from '../../store/driverRideDraft';
+import { useDriverLive } from '../../store/driverLive';
 import { getDriverStatus, type DriverStatus } from '../../lib/driver';
-import { getMyActiveToken, cancelRideToken, type RideToken } from '../../lib/rides';
+import { getMyActiveToken, cancelRideToken, createRideToken, getMyVehicle, type RideToken, type Vehicle } from '../../lib/rides';
 import { getMatchedPassengers, subscribeMatchedRequests, type MatchedPassenger } from '../../lib/requests';
-import { decodeRoute, currentPlace, type Place } from '../../lib/maps';
+import { decodeRoute, currentPlace, getRoute, suggestedPrice, type Place, type Route } from '../../lib/maps';
 import { formatDepart } from '../../lib/format';
 
 // Map-first driver home (PRODUCT_MEMORY "Driver Mode": the map remains, the
 // sheet transforms — this tab should feel like the same stitched surface as
 // Passenger, not a separate screen). Own HomeMap instance (not a single map
 // instance shared across tabs — that's a bigger navigation-shell change,
-// tracked separately); data-loading logic below is unchanged from before.
+// tracked separately); ride-status data-loading logic below is unchanged.
+//
+// Posting a ride is now inline here (pickup/drop on the map + a seats-only
+// confirm), replacing the old separate /ride/post form screen — mirrors
+// Passenger's exact search flow structurally: FloatingSearchCard for
+// pickup/drop, a "When" row + one CTA in the persistent sheet, a confirm
+// drawer for the one remaining choice (seats, not price — price is
+// auto-suggested from distance, same as before, just not editable here).
 const DEFAULT_REGION = { latitude: 19.076, longitude: 72.8777, latitudeDelta: 0.15, longitudeDelta: 0.15 };
 const SHEET_SNAP_POINTS = [220, 560];
+
+function regionFor(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  return {
+    latitude: (a.latitude + b.latitude) / 2,
+    longitude: (a.longitude + b.longitude) / 2,
+    latitudeDelta: Math.abs(a.latitude - b.latitude) * 1.6 + 0.02,
+    longitudeDelta: Math.abs(a.longitude - b.longitude) * 1.6 + 0.02,
+  };
+}
 
 export default function Driver() {
   const profile = useSession((s) => s.profile);
@@ -84,32 +107,97 @@ export default function Driver() {
     }
   }
 
-  // --- Map-first presentation (new) ---
+  // Lock the other tabs while a ride is live (store/driverLive) so the driver
+  // can't switch to Passenger and request their own ride.
+  const setLive = useDriverLive((s) => s.setLive);
+  useEffect(() => {
+    setLive(!!token);
+  }, [token, setLive]);
+
+  // Live ride -> open the sheet expanded so the whole live card (incoming
+  // requests, matched passengers, and the Cancel ride button) is reachable; at
+  // the collapsed snap the Cancel button sat below the fold, hidden behind the
+  // dock with nothing signalling the sheet could be dragged up.
+  const sheetRef = useRef<ElementRef<typeof BottomSheet>>(null);
+  useEffect(() => {
+    sheetRef.current?.snapToIndex(token ? 1 : 0);
+  }, [token]);
+
+  // --- Map-first presentation ---
   const mapRef = useRef<MapView>(null);
   const insets = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<Place | null>(null);
 
-  // Silent, best-effort — same idiom as passenger.tsx's auto-pickup. Only used
-  // to center the map when there's no active route to show instead.
   useEffect(() => {
     currentPlace().then(setCurrentLocation);
   }, []);
 
-  const path = token ? decodeRoute(token.route_polyline) : undefined;
+  // --- Posting flow (only relevant once verified & no live token) ---
+  const { origin, dest, reset: resetDraft } = useDriverRideDraft();
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
+  const [seats, setSeats] = useState(3);
+  const [price, setPrice] = useState(60);
+  const [now, setNow] = useState(true);
+  const [when, setWhen] = useState(() => new Date(Date.now() + 10 * 60_000));
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [startBusy, setStartBusy] = useState(false);
+  const seatSheetRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
+  const whenSheetRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
+
+  // Fresh start each time the driver has no live ride to post one — mirrors
+  // passenger.tsx's mount-only reset (not on every focus, so returning from
+  // the location-picker modal doesn't wipe what was just picked).
+  useEffect(() => {
+    resetDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (profile?.is_driver_verified) {
+      getMyVehicle(profile.id).then((v) => {
+        setVehicle(v);
+        if (v) setSeats(Math.min(v.seats, 6));
+      });
+    }
+  }, [profile?.id, profile?.is_driver_verified]);
+
+  // Auto-fill origin with current location once, same idiom as Passenger's
+  // auto-pickup (only while there's no live token and nothing picked yet).
+  useEffect(() => {
+    if (!token && !origin && currentLocation) {
+      useDriverRideDraft.getState().setPlace('origin', currentLocation);
+    }
+  }, [token, origin, currentLocation]);
+
+  useEffect(() => {
+    if (!origin || !dest) {
+      setRoute(null);
+      return;
+    }
+    getRoute(origin, dest).then((r) => {
+      setRoute(r);
+      setPrice(suggestedPrice(r.distanceKm));
+    });
+  }, [origin, dest]);
+
+  const path = useMemo(() => (token ? decodeRoute(token.route_polyline) : undefined), [token?.route_polyline]);
   const routeA = path?.[0];
   const routeB = path && path.length > 0 ? path[path.length - 1] : undefined;
 
+  // Camera follows: a live token's route > the in-progress pickup/drop draft >
+  // just-picked origin > current location. Mirrors passenger.tsx's structure.
   useEffect(() => {
-    if (routeA && routeB) {
+    if (token && routeA && routeB) {
+      mapRef.current?.animateToRegion(regionFor(routeA, routeB), 700);
+    } else if (origin && dest) {
+      mapRef.current?.animateToRegion(regionFor(origin, dest), 700);
+    } else if (origin) {
       mapRef.current?.animateToRegion(
-        {
-          latitude: (routeA.latitude + routeB.latitude) / 2,
-          longitude: (routeA.longitude + routeB.longitude) / 2,
-          latitudeDelta: Math.abs(routeA.latitude - routeB.latitude) * 1.6 + 0.02,
-          longitudeDelta: Math.abs(routeA.longitude - routeB.longitude) * 1.6 + 0.02,
-        },
-        700
+        { latitude: origin.latitude, longitude: origin.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+        600
       );
     } else if (currentLocation) {
       mapRef.current?.animateToRegion(
@@ -118,64 +206,139 @@ export default function Driver() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token?.id, currentLocation?.label]);
+  }, [token?.id, origin, dest, currentLocation?.label]);
+
+  function pickWhen() {
+    whenSheetRef.current?.present();
+  }
+
+  function openSeatsConfirm() {
+    setFormError(null);
+    if (!origin || !dest) return setFormError('Set your pickup and destination.');
+    if (!vehicle) return setFormError('Add a vehicle in your profile first.');
+    if (!route) return setFormError('Still getting the route — try again in a moment.');
+    setConfirmError(null);
+    seatSheetRef.current?.present();
+  }
+
+  async function confirmStartRide() {
+    setConfirmError(null);
+    setStartBusy(true);
+    try {
+      const departAt = now ? new Date() : when;
+      if (departAt.getTime() <= Date.now()) throw new Error('Pick a departure time in the future.');
+      await createRideToken({
+        driverId: profile!.id,
+        vehicleId: vehicle!.id,
+        origin: origin!,
+        dest: dest!,
+        routePolyline: route!.encoded,
+        departAt,
+        seats,
+        pricePerSeat: price,
+      });
+      resetDraft();
+      seatSheetRef.current?.dismiss();
+      await refresh();
+    } catch (e) {
+      setConfirmError(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setStartBusy(false);
+    }
+  }
 
   const dockFootprint = insets.bottom + DOCK_MARGIN + DOCK_HEIGHT + spacing.md;
   const topOffset = insets.top + spacing.md;
+
+  // Stable object/array identities — recreating either every render makes
+  // react-native-maps re-apply them via the native bridge on every re-render
+  // (subscriptions, focus effects fire often), a real jank source.
+  const mapPadding = useMemo(
+    () => ({
+      top: topOffset + headerHeight + spacing.md,
+      bottom: dockFootprint + SHEET_SNAP_POINTS[0],
+      left: 0,
+      right: 0,
+    }),
+    [topOffset, headerHeight, dockFootprint]
+  );
+
+  const posting = !!profile?.is_driver_verified && !loading && !token;
+  // Memoized on route.encoded (not on every render) — same reason as `path`
+  // above: decodeRoute allocates a new array each call.
+  const draftPath = useMemo(() => (route ? decodeRoute(route.encoded) : undefined), [route?.encoded]);
+  const mapPickup = token && routeA ? routeA : posting && origin ? origin : null;
+  const mapDrop = token && routeB ? routeB : posting && dest ? dest : null;
+  const mapPath = token ? path : posting ? draftPath : undefined;
 
   return (
     <View style={{ flex: 1 }}>
       <HomeMap
         ref={mapRef}
         initialRegion={DEFAULT_REGION}
-        currentLocation={!token && currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
-        pickup={token && routeA ? routeA : null}
-        drop={token && routeB ? routeB : null}
-        path={token ? path : undefined}
-        mapPadding={{
-          top: topOffset + headerHeight + spacing.md,
-          bottom: dockFootprint + SHEET_SNAP_POINTS[0],
-          left: 0,
-          right: 0,
-        }}
+        // Matches passenger.tsx's exact gate (!pickup && currentLocation) — an
+        // earlier extra `!posting` condition here could go false (loading
+        // resolves) BEFORE `origin` auto-filled (geolocation resolves at its
+        // own pace), leaving a window with neither marker shown and a visibly
+        // different transition than Passenger's. `!origin` alone is the
+        // correct, equivalent condition; `!token` is still needed since Driver
+        // (unlike Passenger) renders the live-ride state in this same component
+        // rather than an early return.
+        currentLocation={!token && !origin && currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
+        pickup={mapPickup}
+        drop={mapDrop}
+        path={mapPath}
+        mapPadding={mapPadding}
+        recenterBottomOffset={dockFootprint + SHEET_SNAP_POINTS[0] + spacing.md}
       />
 
-      {/* Floating header — mirrors FloatingSearchCard's treatment (solid dark
-          glass, not translucent, so it never shows the map "through" it). */}
+      {/* Floating header — pickup/drop picker while posting (the literal same
+          component Passenger uses, just relabeled), otherwise a simple
+          title+avatar row. Solid dark glass either way, matching the tab bar. */}
       <View
         style={{ position: 'absolute', top: topOffset, left: 0, right: 0 }}
         className="px-6"
         onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
       >
-        <View
-          className="flex-row items-center justify-between px-4 py-3"
-          style={[darkGlass, { borderRadius: 24 }]}
-        >
-          <View>
-            <Text className="text-muted text-xs">Offer a ride</Text>
-            <Text className="text-text text-lg font-bold">Driver</Text>
-          </View>
-          <Pressable
-            onPress={() => router.push('/profile')}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-            className="active:opacity-70"
-          >
-            <Avatar name={profile?.full_name ?? 'Meau'} uri={profile?.photo_url} size={40} />
-          </Pressable>
-        </View>
+        {posting ? (
+          <FloatingSearchCard
+            title="Post a ride"
+            pickupLabel={origin?.label}
+            dropLabel={dest?.label}
+            onPressPickup={() => router.push('/modal/location-picker?field=origin&role=driver')}
+            onPressDrop={() => router.push('/modal/location-picker?field=dest&role=driver')}
+          />
+        ) : (
+          <DarkGlass className="flex-row items-center justify-between px-4 py-3" radius={24}>
+            <View>
+              <Text className="text-muted text-xs">Driver</Text>
+              <Text className="text-text text-lg font-bold">
+                {token ? 'Live' : status === 'pending' ? 'Under review' : 'Driver'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push('/profile')}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile"
+              className="active:opacity-70"
+            >
+              <Avatar name={profile?.full_name ?? 'Meau'} uri={profile?.photo_url} size={40} />
+            </Pressable>
+          </DarkGlass>
+        )}
       </View>
 
       {/* Persistent sheet — same non-modal BottomSheet + dock-clearance pattern
           as passenger.tsx. Content transforms per state; the map never remounts. */}
       <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: dockFootprint }}>
         <BottomSheet
+          ref={sheetRef}
           snapPoints={SHEET_SNAP_POINTS}
           index={0}
           enableDynamicSizing={false}
           enablePanDownToClose={false}
           backgroundStyle={{
-            backgroundColor: darkGlass.backgroundColor,
+            backgroundColor: colors.surface,
             borderTopLeftRadius: radius.xxl,
             borderTopRightRadius: radius.xxl,
           }}
@@ -207,18 +370,54 @@ export default function Driver() {
                 <ActiveTokenCard token={token} onCancel={onCancel} busy={busy} />
               </>
             ) : (
-              <View className="items-center gap-6 py-4">
-                <EmptyState
-                  icon={Car}
-                  title="No live ride"
-                  description="Post a ride and it stays live until a passenger matches or it departs."
-                />
-                <Button label="Post a ride" onPress={() => router.push('/ride/post')} />
+              <View className="gap-4">
+                <View className="gap-2">
+                  <Text className="text-sm text-muted">When</Text>
+                  <View className="flex-row items-center gap-2">
+                    <Chip label="Now" selected={now} onPress={() => setNow(true)} />
+                    <Pressable onPress={pickWhen} accessibilityRole="button" className="flex-1">
+                      <View
+                        className={`flex-row items-center gap-2 rounded-full px-4 py-2 border ${
+                          !now ? 'bg-accent border-accent' : 'bg-surface2 border-surface2'
+                        }`}
+                      >
+                        <Clock color={now ? colors.text : colors.bg} size={16} />
+                        <Text className={`text-sm font-medium ${now ? 'text-text' : 'text-bg'}`}>
+                          {now ? 'Pick a time' : formatDepart(when)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {formError ? <Text className="text-danger text-sm">{formError}</Text> : null}
+
+                <Button label="Start ride" onPress={openSeatsConfirm} />
               </View>
             )}
           </BottomSheetScrollView>
         </BottomSheet>
       </View>
+
+      <SeatsConfirmSheet
+        ref={seatSheetRef}
+        seats={seats}
+        onSeatsChange={setSeats}
+        maxSeats={vehicle ? Math.min(vehicle.seats, 6) : 6}
+        price={price}
+        onConfirm={confirmStartRide}
+        loading={startBusy}
+        error={confirmError}
+      />
+
+      <TimePickerSheet
+        ref={whenSheetRef}
+        onConfirm={(d) => {
+          setWhen(d);
+          setNow(false);
+          whenSheetRef.current?.dismiss();
+        }}
+      />
     </View>
   );
 }
@@ -232,10 +431,8 @@ function ActiveTokenCard({
   onCancel: () => void;
   busy: boolean;
 }) {
-  // No embedded MapPreview here anymore — the background map already shows
-  // this exact route, so a second small map would be a redundant "map inside
-  // a map" (decluttering per the same instinct that removed the old prompt-
-  // centric empty state).
+  // No embedded MapPreview here — the background map already shows this exact
+  // route, so a second small map would be a redundant "map inside a map."
   return (
     <Card className="gap-4">
       <View className="flex-row items-center justify-between">

@@ -3,10 +3,12 @@ import { router } from 'expo-router';
 import { Circle, MapPin } from 'lucide-react-native';
 import { Avatar } from './Avatar';
 import { PlaceRow } from './PlaceRow';
-import { colors, darkGlass } from '../theme/tokens';
+import { DarkGlass } from './DarkGlass';
+import { colors } from '../theme/tokens';
 import { useSession } from '../store/session';
 
 type Props = {
+  title?: string;
   pickupLabel?: string;
   dropLabel?: string;
   onPressPickup: () => void;
@@ -16,14 +18,15 @@ type Props = {
 // The floating glass entry point for the map-first home screen: greeting +
 // avatar, then the pickup/drop rows that open the existing location-picker
 // modal (unchanged navigation — see REDESIGN_PLAN's "don't rewrite nav"
-// constraint).
-export function FloatingSearchCard({ pickupLabel, dropLabel, onPressPickup, onPressDrop }: Props) {
+// constraint). Reused as-is by the Driver tab (title="Post a ride") so both
+// roles share the literal same pickup/drop UI, not a lookalike duplicate.
+export function FloatingSearchCard({ title = 'Find a ride', pickupLabel, dropLabel, onPressPickup, onPressDrop }: Props) {
   const profile = useSession((s) => s.profile);
 
   return (
-    <View className="p-3 gap-2" style={[darkGlass, { borderRadius: 24 }]}>
+    <DarkGlass className="p-3 gap-2" radius={24}>
       <View className="flex-row items-center justify-between px-1">
-        <Text className="text-muted text-xs">Find a ride</Text>
+        <Text className="text-muted text-xs">{title}</Text>
         <Pressable
           onPress={() => router.push('/profile')}
           accessibilityRole="button"
@@ -46,6 +49,6 @@ export function FloatingSearchCard({ pickupLabel, dropLabel, onPressPickup, onPr
         value={dropLabel}
         onPress={onPressDrop}
       />
-    </View>
+    </DarkGlass>
   );
 }

@@ -35,11 +35,26 @@ export async function placeDetails(placeId: string): Promise<Place | null> {
   };
 }
 
+// Fast coordinate-only fix — prefers the OS's last-known location (instant) and
+// only waits on a fresh GPS lock if there's no cached fix; skips reverse
+// geocoding entirely. For camera recentering, where only lat/lng matter and
+// waiting on a fresh fix + a geocode network round-trip felt sluggish.
+export async function currentCoords(): Promise<{ latitude: number; longitude: number } | null> {
+  const perm = await Location.requestForegroundPermissionsAsync();
+  if (!perm.granted) return null;
+  const last = await Location.getLastKnownPositionAsync();
+  const pos = last ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+  return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+}
+
 // Device location + reverse geocode (free, no key). Returns null if denied.
+// Uses the last-known fix first (same reason as currentCoords) so the pickup
+// auto-fill and its camera move don't stall on a cold GPS lock.
 export async function currentPlace(): Promise<Place | null> {
   const perm = await Location.requestForegroundPermissionsAsync();
   if (!perm.granted) return null;
-  const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  const last = await Location.getLastKnownPositionAsync();
+  const pos = last ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
   const { latitude, longitude } = pos.coords;
   let label = 'Current location';
   try {

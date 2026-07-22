@@ -7,6 +7,7 @@ import { X, MapPin, LocateFixed, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Input } from '../../components/Input';
 import { useRideDraft } from '../../store/rideDraft';
+import { useDriverRideDraft } from '../../store/driverRideDraft';
 import {
   placesAutocomplete,
   placeDetails,
@@ -17,8 +18,10 @@ import {
 import { getRecent, saveRecent } from '../../lib/recent';
 
 export default function LocationPicker() {
-  const { field } = useLocalSearchParams<{ field: 'origin' | 'dest' }>();
-  const setPlace = useRideDraft((s) => s.setPlace);
+  const { field, role } = useLocalSearchParams<{ field: 'origin' | 'dest'; role?: 'driver' }>();
+  const setPassengerPlace = useRideDraft((s) => s.setPlace);
+  const setDriverPlace = useDriverRideDraft((s) => s.setPlace);
+  const setPlace = role === 'driver' ? setDriverPlace : setPassengerPlace;
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);

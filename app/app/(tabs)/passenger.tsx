@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ElementRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ElementRef } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect, Redirect } from 'expo-router';
 import { Screen } from '../../components/Screen';
@@ -235,6 +235,23 @@ function SearchForm() {
   const dockFootprint = insets.bottom + DOCK_MARGIN + DOCK_HEIGHT + spacing.md;
   const topOffset = insets.top + spacing.md;
 
+  // Stable identities for the two array/object props react-native-maps takes —
+  // recreating either every render (decodeRoute allocates a new array; the
+  // padding literal is a new object) makes the native view re-apply them via
+  // the bridge on every re-render, a real jank source now that this screen
+  // re-renders often (subscriptions, focus effects). Only recompute on actual
+  // change.
+  const path = useMemo(() => (route ? decodeRoute(route.encoded) : undefined), [route?.encoded]);
+  const mapPadding = useMemo(
+    () => ({
+      top: topOffset + searchCardHeight + spacing.md,
+      bottom: dockFootprint + SHEET_SNAP_POINTS[0],
+      left: 0,
+      right: 0,
+    }),
+    [topOffset, searchCardHeight, dockFootprint]
+  );
+
   return (
     <View style={{ flex: 1 }}>
       <HomeMap
@@ -250,13 +267,9 @@ function SearchForm() {
         currentLocation={!pickup && currentLocation ? { latitude: currentLocation.latitude, longitude: currentLocation.longitude } : null}
         pickup={pickup ? { latitude: pickup.latitude, longitude: pickup.longitude } : null}
         drop={drop ? { latitude: drop.latitude, longitude: drop.longitude } : null}
-        path={route ? decodeRoute(route.encoded) : undefined}
-        mapPadding={{
-          top: topOffset + searchCardHeight + spacing.md,
-          bottom: dockFootprint + SHEET_SNAP_POINTS[0],
-          left: 0,
-          right: 0,
-        }}
+        path={path}
+        mapPadding={mapPadding}
+        recenterBottomOffset={dockFootprint + SHEET_SNAP_POINTS[0] + spacing.md}
       />
 
       <View

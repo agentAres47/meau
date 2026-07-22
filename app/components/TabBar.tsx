@@ -4,7 +4,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Car, Search, Users, type LucideIcon } from 'lucide-react-native';
-import { colors, darkGlass, motion, spacing } from '../theme/tokens';
+import { colors, motion, spacing } from '../theme/tokens';
+import { DarkGlass } from './DarkGlass';
+import { useDriverLive } from '../store/driverLive';
+import { warningHaptic } from '../lib/haptics';
 
 const META: Record<string, { icon: LucideIcon; label: string }> = {
   driver: { icon: Car, label: 'Driver' },
@@ -24,6 +27,8 @@ export const DOCK_HEIGHT = 52; // rendered height: py-1.5 padding + icon + label
 // based (never spring-based, so it structurally cannot overshoot) icon scale.
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  // While live as a driver, the other tabs are locked (see store/driverLive).
+  const live = useDriverLive((s) => s.live);
 
   return (
     <View
@@ -31,16 +36,21 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + DOCK_MARGIN }}
       className="px-6"
     >
-      {/* Solid, uniform dock (macOS-style) — one flat color across the whole
-          bar, no translucency/map-through (that read as a "gradient"). Hairline
-          top-light edge + soft shadow so it still floats. */}
-      <View className="flex-row items-center px-2 py-1.5" style={[darkGlass, { borderRadius: 28 }]}>
+      {/* Dark-glass dock (macOS-style but translucent, not flat) — a dark,
+          mostly-opaque tint that still carries the sheen highlight, so it
+          floats above the map without the map showing through unevenly. */}
+      <DarkGlass className="flex-row items-center px-2 py-1.5" radius={28}>
         {state.routes.map((route, i) => {
           const meta = META[route.name];
           if (!meta) return null;
           const focused = state.index === i;
+          const locked = live && route.name !== 'driver';
 
           function onPress() {
+            if (locked) {
+              warningHaptic();
+              return;
+            }
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
@@ -52,10 +62,17 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
           }
 
           return (
-            <TabButton key={route.key} icon={meta.icon} label={meta.label} focused={focused} onPress={onPress} />
+            <TabButton
+              key={route.key}
+              icon={meta.icon}
+              label={meta.label}
+              focused={focused}
+              locked={locked}
+              onPress={onPress}
+            />
           );
         })}
-      </View>
+      </DarkGlass>
     </View>
   );
 }
@@ -64,11 +81,13 @@ function TabButton({
   icon: Icon,
   label,
   focused,
+  locked,
   onPress,
 }: {
   icon: LucideIcon;
   label: string;
   focused: boolean;
+  locked: boolean;
   onPress: () => void;
 }) {
   const scale = useSharedValue(1);
@@ -84,8 +103,9 @@ function TabButton({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityState={focused ? { selected: true } : {}}
+      accessibilityState={{ selected: focused, disabled: locked }}
       className="flex-1 items-center justify-center py-1.5 gap-1"
+      style={{ opacity: locked ? 0.35 : 1 }}
     >
       <Animated.View style={iconStyle}>
         <Icon color={color} size={20} />

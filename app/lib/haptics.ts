@@ -11,3 +11,9 @@ export function matchHaptic() {
 export function selectionHaptic() {
   Haptics.selectionAsync().catch(() => {});
 }
+
+// Soft "no" — a blocked/locked action, e.g. tapping a tab that's locked while
+// you're live as a driver.
+export function warningHaptic() {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+}

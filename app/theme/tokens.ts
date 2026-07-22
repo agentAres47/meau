@@ -31,6 +31,13 @@ export const colors = {
   // fraction of the screen, not by the glass itself being faint.
   glassTint: '#0D0D0DB3', // bg-black at ~70% — darkens/obscures what's behind it
   glassBorder: '#FFFFFF26', // ~15% white — thin hairline, not a visible box edge
+  // Darker/more-opaque translucent fill for the always-floating-over-map dock
+  // chrome (tab bar, search/post card, driver header, recenter button) — these
+  // sit over a MOVING map, so glassTint's ~70% opacity let raw map detail
+  // bleed through unevenly (read as a "gradient"/dirty-window look). ~90%
+  // opacity keeps that from happening while staying translucent enough (with
+  // DarkGlass's sheen highlight) to still read as glass, not a flat panel.
+  dockGlassTint: '#1A1517E6', // surface2 at ~90%
 } as const;
 
 // Background gradient stops + stop positions (expo-linear-gradient, top →
@@ -60,19 +67,5 @@ export const motion = {
   pressScale: 0.97,
 } as const;
 
-// Solid "dark glass" surface for floating chrome (the dock, the search card) — a
-// single flat color that matches the near-black background instead of
-// translucent glass showing the map through (which read as an uneven gradient).
-// Tune the whole app's floating-surface look from HERE. Each caller adds its own
-// borderRadius. To make it darker/lighter, change backgroundColor (e.g. `surface`
-// for darker, `surface2` for a touch lighter).
-export const darkGlass = {
-  backgroundColor: colors.surface2,
-  borderWidth: 1,
-  borderColor: colors.glassBorder,
-  shadowColor: '#000',
-  shadowOpacity: 0.4,
-  shadowRadius: 16,
-  shadowOffset: { width: 0, height: 8 },
-  elevation: 12,
-} as const;
+// Superseded by components/DarkGlass.tsx (a real translucent fill + sheen
+// highlight, not a flat opaque style object — see that file for why).
