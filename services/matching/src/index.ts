@@ -34,13 +34,24 @@ app.post('/match', async (req, res) => {
   const reqGeo = (geoRows as RequestGeo[] | null)?.[0];
   if (!reqGeo) return res.status(404).json({ error: 'request_not_found' });
 
+  // Whose request this is — used to hide the passenger's own ride tokens from
+  // their results (you can't ride with yourself). live_token_candidates doesn't
+  // take a passenger id, so we filter here.
+  const { data: reqRow } = await admin
+    .from('ride_requests')
+    .select('passenger_id')
+    .eq('id', request_id)
+    .single();
+  const passengerId = reqRow?.passenger_id;
+
   const { data: candidates, error: candErr } = await admin.rpc('live_token_candidates', {
     p_desired: reqGeo.desired_time,
     p_window_min: TIME_WINDOW_MIN,
   });
   if (candErr) return res.status(500).json({ error: 'candidate_lookup_failed' });
 
-  const matches = rankMatches(reqGeo, (candidates as Candidate[] | null) ?? []);
+  const own = ((candidates as Candidate[] | null) ?? []).filter((c) => c.driver_id !== passengerId);
+  const matches = rankMatches(reqGeo, own);
   return res.json({ matches });
 });
 
@@ -51,6 +62,16 @@ app.post('/request', async (req, res) => {
     return res.status(400).json({ error: 'missing_request_or_tokens' });
   }
 
+  // Whose request this is — the write-boundary guard against self-matching: a
+  // driver must never create a request_target against their own ride token,
+  // regardless of how they got here (stale client, tab nav, etc.).
+  const { data: reqRow } = await admin
+    .from('ride_requests')
+    .select('passenger_id')
+    .eq('id', request_id)
+    .single();
+  const passengerId = reqRow?.passenger_id;
+
   // Resolve each token's driver so targets carry driver_id.
   const { data: tokens, error: tErr } = await admin
     .from('ride_tokens')
@@ -59,7 +80,7 @@ app.post('/request', async (req, res) => {
   if (tErr) return res.status(500).json({ error: 'token_lookup_failed' });
 
   const rows = (tokens ?? [])
-    .filter((t) => t.status === 'live' && t.seats_left > 0)
+    .filter((t) => t.status === 'live' && t.seats_left > 0 && t.driver_id !== passengerId)
     .map((t) => ({ request_id, token_id: t.id, driver_id: t.driver_id, state: 'pending' }));
   if (rows.length === 0) return res.status(409).json({ error: 'no_live_tokens' });
 

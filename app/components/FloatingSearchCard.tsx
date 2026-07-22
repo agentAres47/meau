@@ -1,10 +1,9 @@
 import { View, Text, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Circle, MapPin } from 'lucide-react-native';
-import { Glass } from './Glass';
 import { Avatar } from './Avatar';
 import { PlaceRow } from './PlaceRow';
-import { colors } from '../theme/tokens';
+import { colors, darkGlass } from '../theme/tokens';
 import { useSession } from '../store/session';
 
 type Props = {
@@ -22,7 +21,7 @@ export function FloatingSearchCard({ pickupLabel, dropLabel, onPressPickup, onPr
   const profile = useSession((s) => s.profile);
 
   return (
-    <Glass className="p-3 gap-2">
+    <View className="p-3 gap-2" style={[darkGlass, { borderRadius: 24 }]}>
       <View className="flex-row items-center justify-between px-1">
         <Text className="text-muted text-xs">Find a ride</Text>
         <Pressable
@@ -47,6 +46,6 @@ export function FloatingSearchCard({ pickupLabel, dropLabel, onPressPickup, onPr
         value={dropLabel}
         onPress={onPressDrop}
       />
-    </Glass>
+    </View>
   );
 }

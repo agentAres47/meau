@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '../../components/Screen';
-import { ChevronLeft, ShieldCheck, Car, Clock, CircleAlert } from 'lucide-react-native';
+import { ChevronLeft, ShieldCheck, Car, Clock, CircleAlert, History } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Avatar } from '../../components/Avatar';
 import { Badge } from '../../components/Badge';
@@ -68,6 +68,17 @@ export default function Profile() {
         </Card>
 
         <DriverSection isVerified={profile.is_driver_verified} driver={driver} />
+
+        <Pressable
+          onPress={() => router.push('/profile/history')}
+          accessibilityRole="button"
+          className="active:opacity-70"
+        >
+          <Card className="flex-row items-center gap-3">
+            <History color={colors.muted} size={20} />
+            <Text className="text-text font-semibold flex-1">Ride history</Text>
+          </Card>
+        </Pressable>
 
         <Button label="Sign out" variant="secondary" onPress={signOut} />
       </ScrollView>

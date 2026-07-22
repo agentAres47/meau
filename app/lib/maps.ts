@@ -1,3 +1,4 @@
+import { Linking, Platform } from 'react-native';
 import polyline from '@mapbox/polyline';
 import * as Location from 'expo-location';
 
@@ -83,6 +84,23 @@ export function decodeRoute(encoded: string): { latitude: number; longitude: num
 // Distance-based suggested fare per seat (05-DRIVER-FLOW.md): clamp(20,150, 8/km).
 export function suggestedPrice(distanceKm: number): number {
   return Math.min(150, Math.max(20, Math.round(8 * distanceKm)));
+}
+
+// One-tap: open the device's maps app with turn-by-turn to a coordinate.
+// Android → Google Maps navigation intent; iOS → Apple/Google; falls back to the
+// universal Maps URL. No native module — just Linking (core RN).
+export async function openNavigationTo(latitude: number, longitude: number): Promise<void> {
+  const native =
+    Platform.OS === 'android'
+      ? `google.navigation:q=${latitude},${longitude}`
+      : `maps://?daddr=${latitude},${longitude}&dirflg=d`;
+  const web = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+  try {
+    const canNative = await Linking.canOpenURL(native);
+    await Linking.openURL(canNative ? native : web);
+  } catch {
+    await Linking.openURL(web).catch(() => {});
+  }
 }
 
 function haversineKm(a: Place, b: Place): number {

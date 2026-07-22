@@ -18,14 +18,27 @@ import { supabase } from './supabase';
 // (services/matching/src/notify.ts sets `channelId: 'default'`). Keep in sync.
 export const ANDROID_CHANNEL = 'default';
 
-// Foreground presentation: show a banner + sound even while the app is open.
+// The match the user is currently viewing (chat or matched screen), by id.
+// Set by those screens so we can suppress a push for content already on screen
+// (Bugs 7 & 8) — Realtime already delivers it in-app.
+let activeMatchId: string | null = null;
+export function setActiveMatch(matchId: string | null): void {
+  activeMatchId = matchId;
+}
+
+// Foreground presentation: show a banner + sound even while the app is open,
+// UNLESS the push is for the match the user is already looking at.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data as { matchId?: string } | undefined;
+    const suppress = !!data?.matchId && data.matchId === activeMatchId;
+    return {
+      shouldShowBanner: !suppress,
+      shouldShowList: !suppress,
+      shouldPlaySound: !suppress,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 const projectId =
@@ -54,22 +67,28 @@ export async function registerPushToken(profileId: string): Promise<void> {
   if (status !== 'granted') return;
   if (!projectId) return;
 
-  await ensureAndroidChannel();
-
   let token: string;
   try {
+    await ensureAndroidChannel();
     token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
   } catch {
     return; // offline / Expo Go — non-fatal
   }
   lastRegisteredToken = token;
 
-  await supabase
-    .from('push_tokens')
-    .upsert(
-      { profile_id: profileId, expo_push_token: token, updated_at: new Date().toISOString() },
-      { onConflict: 'profile_id,expo_push_token' }
-    );
+  // Best-effort: called fire-and-forget from _layout/matched-screen effects, so
+  // a transient network failure here must never surface as an unhandled
+  // rejection — Realtime remains the reliable in-app path regardless (M5).
+  try {
+    await supabase
+      .from('push_tokens')
+      .upsert(
+        { profile_id: profileId, expo_push_token: token, updated_at: new Date().toISOString() },
+        { onConflict: 'profile_id,expo_push_token' }
+      );
+  } catch {
+    // retried next time registerPushToken runs (app open / next match)
+  }
 }
 
 // Remove THIS device's token for the given profile. Must run while the session
@@ -107,10 +126,14 @@ export async function ensureNotificationPermission(profileId: string): Promise<v
 // older client tolerates a newer payload (forward-compatible).
 export function routeFromData(data: unknown): void {
   if (!data || typeof data !== 'object') return;
-  const d = data as { type?: string; matchId?: string; request_id?: string };
+  const d = data as { type?: string; matchId?: string; request_id?: string; role?: string };
   if (d.type === 'chat' && d.matchId) router.push(`/match/${d.matchId}`);
   else if (d.type === 'match' && d.matchId) router.push(`/ride/matched/${d.matchId}`);
-  else if (d.type === 'driver_incoming') router.push('/(tabs)/driver');
+  else if (d.type === 'autopool' && d.matchId) router.push(`/match/${d.matchId}`);
+  else if (d.type === 'driver_incoming' && d.request_id) router.push(`/ride/request/${d.request_id}`);
+  else if (d.type === 'request_declined') router.push('/(tabs)/passenger');
+  else if (d.type === 'ride_cancelled') router.push(d.role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
+  else if (d.type === 'rate' && d.matchId) router.push(`/ride/rate/${d.matchId}`);
 }
 
 // Cold start: the data of the notification the app was launched from, if any.

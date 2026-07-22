@@ -24,6 +24,7 @@ export type MatchStatus = {
   drop_lat: number | null;
   ride_request_id: string | null;
   request_status: 'searching' | 'matched' | 'cancelled' | 'expired' | null;
+  completed_at: string | null;
 };
 
 export async function getMatchStatus(matchId: string): Promise<MatchStatus | null> {
@@ -36,4 +37,72 @@ export async function getMatchStatus(matchId: string): Promise<MatchStatus | nul
 export async function cancelMatch(matchId: string): Promise<void> {
   const { error } = await supabase.rpc('cancel_match', { p_match_id: matchId });
   if (error) throw new Error(error.message);
+}
+
+// F8 — ride completion, ratings, history. Manual end only (ponytail: no
+// auto-complete timeout yet; add via expire_stale_rows if rides get stuck).
+export async function endRide(matchId: string): Promise<void> {
+  const { error } = await supabase.rpc('end_ride', { p_match_id: matchId });
+  if (error) throw new Error(error.message);
+}
+
+export type Sentiment = 'smooth' | 'mostly' | 'not_smooth';
+
+export async function submitRating(params: {
+  matchId: string;
+  sentiment: Sentiment;
+  stars?: number | null;
+  note?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.rpc('submit_rating', {
+    p_match_id: params.matchId,
+    p_sentiment: params.sentiment,
+    p_stars: params.stars ?? null,
+    p_note: params.note ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export type HistoryEntry = {
+  match_id: string;
+  kind: 'ride' | 'autopool';
+  other_name: string | null;
+  other_photo: string | null;
+  origin_label: string;
+  dest_label: string;
+  fare: number | null;
+  route_code: string | null; // autopool only — client resolves label/fare (see PRESET_ROUTES)
+  pool_size: number;
+  when_at: string;
+  completed: boolean;
+  i_rated: boolean;
+};
+
+export async function getRideHistory(): Promise<HistoryEntry[]> {
+  const { data } = await supabase.rpc('my_ride_history');
+  return (data as HistoryEntry[]) ?? [];
+}
+
+// Plain select (RLS: matches_participant_select already permits this) — used by
+// the autopool chat screen after a subscribeMatch tick to check for completion,
+// without needing a new RPC.
+export async function getMatchCompletedAt(matchId: string): Promise<string | null> {
+  const { data } = await supabase.from('matches').select('completed_at').eq('id', matchId).maybeSingle();
+  return (data as { completed_at: string | null } | null)?.completed_at ?? null;
+}
+
+// Realtime on a match row (fires on completed_at set) — used so the party who
+// didn't tap "End ride" gets prompted to rate live, no refresh needed.
+export function subscribeMatch(matchId: string, onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`match-${matchId}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
+      onChange
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }

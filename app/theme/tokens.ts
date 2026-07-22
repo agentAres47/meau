@@ -59,3 +59,20 @@ export const motion = {
   spring: { damping: 30, stiffness: 220, mass: 1 },
   pressScale: 0.97,
 } as const;
+
+// Solid "dark glass" surface for floating chrome (the dock, the search card) — a
+// single flat color that matches the near-black background instead of
+// translucent glass showing the map through (which read as an uneven gradient).
+// Tune the whole app's floating-surface look from HERE. Each caller adds its own
+// borderRadius. To make it darker/lighter, change backgroundColor (e.g. `surface`
+// for darker, `surface2` for a touch lighter).
+export const darkGlass = {
+  backgroundColor: colors.surface2,
+  borderWidth: 1,
+  borderColor: colors.glassBorder,
+  shadowColor: '#000',
+  shadowOpacity: 0.4,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 12,
+} as const;

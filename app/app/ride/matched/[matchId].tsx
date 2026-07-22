@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Screen } from '../../../components/Screen';
 import { ShieldCheck } from 'lucide-react-native';
 import { colors, motion } from '../../../theme/tokens';
@@ -11,13 +11,13 @@ import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { MapPreview } from '../../../components/MapPreview';
 import { VehicleSeats } from '../../../components/VehicleSeats';
-import { getMatchStatus, cancelMatch, type MatchStatus } from '../../../lib/match';
+import { getMatchStatus, cancelMatch, endRide, subscribeMatch, type MatchStatus } from '../../../lib/match';
 import { subscribeRequest } from '../../../lib/passenger';
-import { decodeRoute } from '../../../lib/maps';
+import { decodeRoute, openNavigationTo } from '../../../lib/maps';
 import { formatDepart } from '../../../lib/format';
 import { useReducedMotion } from '../../../lib/reducedMotion';
 import { useSession } from '../../../store/session';
-import { ensureNotificationPermission } from '../../../lib/notifications';
+import { ensureNotificationPermission, setActiveMatch } from '../../../lib/notifications';
 
 // Shared by both sides of a match so driver + passenger see the exact same
 // "we're on the same page" screen: each other's info, the route, a seat
@@ -29,6 +29,7 @@ export default function MatchedRide() {
   const profileId = useSession((s) => s.profile?.id);
   const [status, setStatus] = useState<MatchStatus | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [endBusy, setEndBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // F7: first time a user reaches a match is the contextual moment to ask for
@@ -36,6 +37,14 @@ export default function MatchedRide() {
   useEffect(() => {
     if (profileId) ensureNotificationPermission(profileId);
   }, [profileId]);
+
+  // Bug 8: suppress the "Ride Accepted" push for THIS match while it's on screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (matchId) setActiveMatch(matchId);
+      return () => setActiveMatch(null);
+    }, [matchId])
+  );
 
   // Signature match-moment entrance (11-UI-DESIGN.md) — a quiet spring/fade
   // on the "you matched" block, once, on mount. Everything else on this
@@ -68,11 +77,53 @@ export default function MatchedRide() {
     return subscribeRequest(status.ride_request_id, load);
   }, [status?.ride_request_id, load]);
 
+  // F8: if the OTHER side ends the ride (or our own end_ride's DB write lands),
+  // completed_at appears on the matches row -> reload picks it up.
   useEffect(() => {
-    if (status && status.request_status !== 'matched') {
-      router.replace(status.my_role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
+    if (!matchId) return;
+    return subscribeMatch(matchId, load);
+  }, [matchId, load]);
+
+  // F8: once completed, go straight to the feedback flow (PRODUCT_MEMORY:
+  // sentiment before stars). Guarded so it fires exactly once even if both the
+  // manual endRide() call and this realtime-driven reload land.
+  const ratedRef = useRef(false);
+  useEffect(() => {
+    if (!status?.completed_at || !matchId || ratedRef.current) return;
+    ratedRef.current = true;
+    router.replace(`/ride/rate/${matchId}`);
+  }, [status?.completed_at, matchId]);
+
+  // On the other side cancelling (BUG 3), tell this user explicitly instead of a
+  // silent redirect, then leave. Guarded so it fires exactly once.
+  const leftRef = useRef(false);
+  useEffect(() => {
+    if (!status || status.request_status === 'matched' || leftRef.current) return;
+    leftRef.current = true;
+    const dest = status.my_role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger';
+    if (status.request_status === 'cancelled') {
+      const who = status.my_role === 'driver' ? 'Passenger' : 'Driver';
+      Alert.alert('Ride cancelled', `${who} cancelled the ride.`, [
+        { text: 'OK', onPress: () => router.replace(dest) },
+      ]);
+    } else {
+      router.replace(dest);
     }
   }, [status]);
+
+  async function onEndRide() {
+    if (!matchId) return;
+    setEndBusy(true);
+    setError(null);
+    try {
+      await endRide(matchId);
+      ratedRef.current = true; // we're already navigating; skip the realtime-driven duplicate
+      router.replace(`/ride/rate/${matchId}`);
+    } catch {
+      setError('Could not end the ride. Try again.');
+      setEndBusy(false);
+    }
+  }
 
   async function onCancel() {
     if (!matchId || !status) return;
@@ -188,6 +239,18 @@ export default function MatchedRide() {
 
         {error ? <Text className="text-danger text-sm text-center">{error}</Text> : null}
 
+        {/* Driver one-tap navigation to the passenger's pickup (Phase A). */}
+        {status.my_role === 'driver' && status.pickup_lat != null && status.pickup_lng != null ? (
+          <Button
+            label="Navigate to pickup"
+            onPress={() => openNavigationTo(status.pickup_lat!, status.pickup_lng!)}
+          />
+        ) : null}
+
+        {/* F8: either participant can mark the ride done -> both get the
+            sentiment-first feedback flow. Manual only for now (ponytail: no
+            auto-complete timeout yet). */}
+        <Button label="End ride" loading={endBusy} onPress={onEndRide} />
         <Button label="Message" onPress={() => router.push(`/match/${matchId}`)} />
         <Button label="Cancel ride" variant="secondary" loading={busy} onPress={onCancel} />
       </ScrollView>

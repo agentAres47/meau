@@ -6,3 +6,8 @@ import * as Haptics from 'expo-haptics';
 export function matchHaptic() {
   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
+
+// Light tick for discrete selections (e.g. picking a time slot).
+export function selectionHaptic() {
+  Haptics.selectionAsync().catch(() => {});
+}

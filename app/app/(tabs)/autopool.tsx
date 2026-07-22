@@ -2,12 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '../../components/Screen';
-import { Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
-import { Radar } from '../../components/Radar';
+import { SleepingCat } from '../../components/SleepingCat';
 import { useSession } from '../../store/session';
 import {
   PRESET_ROUTES,
@@ -29,10 +28,21 @@ export default function AutoPool() {
   const [session, setSession] = useState<PoolSession | null | undefined>(undefined);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Bug 5: always resolve `session` to a definite value. Previously an early
+  // return when `profile` was momentarily null (e.g. right after navigating
+  // back from a pooled match) left `session === undefined` forever → the
+  // endless loading spinner. Now it falls back to null (renders the Picker),
+  // and re-runs once profile repopulates.
   const load = useCallback(async () => {
-    if (!profile) return;
-    const s = await getActivePoolSession(profile.id);
-    setSession(s);
+    if (!profile) {
+      setSession(null);
+      return;
+    }
+    try {
+      setSession(await getActivePoolSession(profile.id));
+    } catch {
+      setSession(null);
+    }
   }, [profile]);
 
   useFocusEffect(
@@ -124,7 +134,7 @@ function Waiting({ session, onCancel }: { session: PoolSession; onCancel: () => 
   return (
     <Screen className="items-center justify-center px-6" edges={['top', 'bottom']}>
       <View className="items-center gap-6">
-        <Radar icon={Users} />
+        <SleepingCat />
         <View className="items-center gap-1">
           <Text className="text-text text-lg font-bold">
             {session.mode === 'now' ? 'Searching now…' : `Queued for ${formatDepart(session.slot_time!)}`}

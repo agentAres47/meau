@@ -4,8 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Car, Search, Users, type LucideIcon } from 'lucide-react-native';
-import { Glass } from './Glass';
-import { colors, motion, spacing } from '../theme/tokens';
+import { colors, darkGlass, motion, spacing } from '../theme/tokens';
 
 const META: Record<string, { icon: LucideIcon; label: string }> = {
   driver: { icon: Car, label: 'Driver' },
@@ -32,30 +31,31 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + DOCK_MARGIN }}
       className="px-6"
     >
-      <Glass className="px-2 py-1.5" intensity={40} radius={28}>
-        <View className="flex-row items-center">
-          {state.routes.map((route, i) => {
-            const meta = META[route.name];
-            if (!meta) return null;
-            const focused = state.index === i;
+      {/* Solid, uniform dock (macOS-style) — one flat color across the whole
+          bar, no translucency/map-through (that read as a "gradient"). Hairline
+          top-light edge + soft shadow so it still floats. */}
+      <View className="flex-row items-center px-2 py-1.5" style={[darkGlass, { borderRadius: 28 }]}>
+        {state.routes.map((route, i) => {
+          const meta = META[route.name];
+          if (!meta) return null;
+          const focused = state.index === i;
 
-            function onPress() {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
+          function onPress() {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+            if (!focused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
             }
+          }
 
-            return (
-              <TabButton key={route.key} icon={meta.icon} label={meta.label} focused={focused} onPress={onPress} />
-            );
-          })}
-        </View>
-      </Glass>
+          return (
+            <TabButton key={route.key} icon={meta.icon} label={meta.label} focused={focused} onPress={onPress} />
+          );
+        })}
+      </View>
     </View>
   );
 }

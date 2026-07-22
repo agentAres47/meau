@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ElementRef } from 'react';
 import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Screen } from '../../components/Screen';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { TimePickerSheet } from '../../components/TimePickerSheet';
 import { ChevronLeft, Circle, MapPin, Clock } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Card } from '../../components/Card';
@@ -42,6 +43,7 @@ export default function PostRide() {
   const [price, setPrice] = useState(60);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const departSheetRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
 
   // Start each post fresh, then load the driver's vehicle for seat defaults.
   useEffect(() => {
@@ -68,24 +70,7 @@ export default function PostRide() {
   }, [origin, dest]);
 
   function pickDepart() {
-    DateTimePickerAndroid.open({
-      value: departAt,
-      mode: 'date',
-      minimumDate: new Date(),
-      onChange: (e, d) => {
-        if (e.type !== 'set' || !d) return;
-        DateTimePickerAndroid.open({
-          value: d,
-          mode: 'time',
-          onChange: (e2, t) => {
-            if (e2.type !== 'set' || !t) return;
-            const combined = new Date(d);
-            combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
-            setDepartAt(combined);
-          },
-        });
-      },
-    });
+    departSheetRef.current?.present();
   }
 
   async function goLive() {
@@ -195,6 +180,14 @@ export default function PostRide() {
           <Button label="Go live" loading={loading} onPress={goLive} />
         </View>
       </KeyboardAvoidingView>
+
+      <TimePickerSheet
+        ref={departSheetRef}
+        onConfirm={(d) => {
+          setDepartAt(d);
+          departSheetRef.current?.dismiss();
+        }}
+      />
     </Screen>
   );
 }

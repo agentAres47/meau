@@ -46,8 +46,51 @@ export async function acceptRequest(params: {
   return match_id;
 }
 
+// Decline via RPC (not a bare table write): the RPC also propagates to the
+// passenger's ride_requests subscription + push when no drivers remain (BUG 2).
 export async function declineTarget(targetId: string): Promise<void> {
-  await supabase.from('request_targets').update({ state: 'declined' }).eq('id', targetId);
+  const { error } = await supabase.rpc('decline_target', { p_target_id: targetId });
+  if (error) throw new Error(error.message);
+}
+
+// Full detail for one incoming request, for the dedicated decision screen (BUG 1).
+export type IncomingDetail = {
+  target_id: string;
+  token_id: string;
+  driver_id: string;
+  passenger_name: string | null;
+  passenger_photo: string | null;
+  pickup_label: string;
+  drop_label: string;
+  pickup_lat: number;
+  pickup_lng: number;
+  drop_lat: number;
+  drop_lng: number;
+  route_polyline: string;
+  depart_at: string;
+  offered_price: number;
+};
+
+export async function getIncomingDetail(requestId: string): Promise<IncomingDetail | null> {
+  const { data } = await supabase.rpc('incoming_request_detail', { p_request_id: requestId });
+  return (data?.[0] as IncomingDetail) ?? null;
+}
+
+// Realtime on the driver's MATCHED requests (BUG 3): when a passenger cancels,
+// their ride_requests row flips to 'cancelled' -> callback (refetch) so the
+// driver's matched-passenger list updates without a manual refresh.
+export function subscribeMatchedRequests(driverId: string, onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`matched-reqs-${driverId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'ride_requests', filter: `matched_driver_id=eq.${driverId}` },
+      onChange
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
 
 export type MatchedPassenger = {

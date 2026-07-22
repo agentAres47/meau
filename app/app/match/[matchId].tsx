@@ -10,10 +10,15 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../../components/Screen';
 import { ChevronLeft, Send, ShieldCheck, Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
+import { formatDepart } from '../../lib/format';
+import { setActiveMatch, ensureNotificationPermission } from '../../lib/notifications';
+import { endRide, subscribeMatch, getMatchCompletedAt } from '../../lib/match';
+import { matchHaptic } from '../../lib/haptics';
 import { Avatar } from '../../components/Avatar';
 import { Skeleton } from '../../components/Skeleton';
 import { useSession } from '../../store/session';
@@ -51,7 +56,24 @@ export default function MatchChat() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [endBusy, setEndBusy] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
+  const insets = useSafeAreaInsets();
+  const ratedRef = useRef(false);
+
+  // Bug 7: suppress chat pushes for THIS match while it's on screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (matchId) setActiveMatch(matchId);
+      return () => setActiveMatch(null);
+    }, [matchId])
+  );
+
+  // H1: autopool users reach a match here (not the directed-ride matched
+  // screen), so this is also a contextual moment to ask for push permission.
+  useEffect(() => {
+    if (me?.id) ensureNotificationPermission(me.id);
+  }, [me?.id]);
 
   // Load meta + history, seed the system summary, THEN subscribe — subscribing
   // before history is set would let an incoming message get clobbered by the
@@ -102,6 +124,36 @@ export default function MatchChat() {
       if (status === 'disbanded') router.replace('/(tabs)/autopool');
     });
   }, [matchId, meta?.kind]);
+
+  // F8 (autopool): directed rides end from ride/matched/[matchId] — that
+  // screen doesn't exist for autopool (which lands here directly), so "End
+  // ride" lives in this header instead. Realtime + a plain select (no new RPC,
+  // matches_participant_select already permits it) catch the OTHER poolers.
+  useEffect(() => {
+    if (!matchId || meta?.kind !== 'autopool') return;
+    return subscribeMatch(matchId, async () => {
+      if (ratedRef.current) return;
+      const completedAt = await getMatchCompletedAt(matchId);
+      if (completedAt) {
+        ratedRef.current = true;
+        router.replace(`/ride/rate/${matchId}`);
+      }
+    });
+  }, [matchId, meta?.kind]);
+
+  async function onEndRide() {
+    if (!matchId) return;
+    setEndBusy(true);
+    try {
+      await endRide(matchId);
+      matchHaptic();
+      ratedRef.current = true;
+      router.replace(`/ride/rate/${matchId}`);
+    } catch {
+      setError('Could not end the ride. Try again.');
+      setEndBusy(false);
+    }
+  }
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -180,6 +232,16 @@ export default function MatchChat() {
                 {autopool ? `${autopool.poolSize} pooling` : 'Auto Pool'}
               </Text>
             </View>
+            <Pressable
+              onPress={onEndRide}
+              disabled={endBusy}
+              accessibilityRole="button"
+              className="active:opacity-70 px-2"
+            >
+              <Text className="text-accent text-xs font-semibold">
+                {endBusy ? '…' : 'End ride'}
+              </Text>
+            </Pressable>
           </>
         ) : (
           <>
@@ -216,7 +278,17 @@ export default function MatchChat() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => <Bubble message={item} mine={item.sender_id === me?.id} />}
+          renderItem={({ item }) => {
+            if (item.kind === 'system') {
+              // Compact structured "Ride Matched" card for directed rides (uses
+              // the meta the screen already has); plain text otherwise.
+              if (meta?.kind === 'ride' && meta.origin_label && meta.dest_label) {
+                return <RideMatchedCard meta={meta} />;
+              }
+              return <Text className="text-muted text-xs text-center px-6 py-1">{item.body}</Text>;
+            }
+            return <Bubble message={item} mine={item.sender_id === me?.id} />;
+          }}
         />
 
         {error ? <Text className="text-danger text-sm px-4 pb-1">{error}</Text> : null}
@@ -240,8 +312,12 @@ export default function MatchChat() {
           ))}
         </ScrollView>
 
-        {/* Composer */}
-        <View className="flex-row items-end gap-2 px-4 pt-1 pb-3">
+        {/* Composer — reserve the bottom safe-area inset so it (and the last
+            message above it) never sits under the gesture nav bar. */}
+        <View
+          className="flex-row items-end gap-2 px-4 pt-1"
+          style={{ paddingBottom: insets.bottom + 8 }}
+        >
           <TextInput
             value={text}
             onChangeText={setText}
@@ -263,6 +339,31 @@ export default function MatchChat() {
         </View>
       </KeyboardAvoidingView>
     </Screen>
+  );
+}
+
+// Compact structured card replacing the long "you matched…" paragraph.
+function RideMatchedCard({ meta }: { meta: ChatMeta }) {
+  return (
+    <View className="self-stretch bg-surface2 rounded-2xl px-4 py-3 my-1 gap-2">
+      <Text className="text-text text-sm font-semibold">Ride Matched</Text>
+      <Row label="From" value={meta.origin_label} />
+      <Row label="To" value={meta.dest_label} />
+      {meta.depart_at ? <Row label="Departure" value={formatDepart(meta.depart_at)} /> : null}
+      {meta.price_per_seat != null ? <Row label="Fare" value={`₹${meta.price_per_seat}/seat`} /> : null}
+    </View>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return (
+    <View className="flex-row justify-between gap-3">
+      <Text className="text-muted text-xs">{label}</Text>
+      <Text className="text-text text-xs font-medium flex-1 text-right" numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
   );
 }
 

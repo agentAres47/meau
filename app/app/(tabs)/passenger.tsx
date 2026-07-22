@@ -5,7 +5,6 @@ import { Screen } from '../../components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, { BottomSheetView, BottomSheetModal } from '@gorhom/bottom-sheet';
 import type MapView from 'react-native-maps';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Clock } from 'lucide-react-native';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { Button } from '../../components/Button';
@@ -13,6 +12,7 @@ import { Chip } from '../../components/Chip';
 import { HomeMap } from '../../components/HomeMap';
 import { FloatingSearchCard } from '../../components/FloatingSearchCard';
 import { FareConfirmSheet } from '../../components/FareConfirmSheet';
+import { TimePickerSheet } from '../../components/TimePickerSheet';
 import { DOCK_MARGIN, DOCK_HEIGHT } from '../../components/TabBar';
 import { useSession } from '../../store/session';
 import { useRideDraft } from '../../store/rideDraft';
@@ -24,14 +24,22 @@ import { formatDepart } from '../../lib/format';
 export default function Passenger() {
   const profile = useSession((s) => s.profile);
   const [active, setActive] = useState<ActiveRequest | null | undefined>(undefined);
-  const [matchId, setMatchId] = useState<string | null>(null);
+  // undefined = resolving, null = failed after retries, string = ready (H2).
+  const [matchId, setMatchId] = useState<string | null | undefined>(undefined);
 
   const loadActive = useCallback(async () => {
     if (!profile) return;
     const a = await getActiveRequest(profile.id);
     setActive(a);
     if (a?.status === 'matched') {
-      setMatchId(await getMatchId(a.id));
+      // The match row can lag the request's status flip. Brief bounded retry so
+      // we don't sit on an unbounded spinner if the first read is null (H2).
+      let mid = await getMatchId(a.id);
+      for (let i = 0; i < 3 && !mid; i++) {
+        await new Promise((r) => setTimeout(r, 700));
+        mid = await getMatchId(a.id);
+      }
+      setMatchId(mid ?? null);
     }
   }, [profile]);
 
@@ -56,10 +64,22 @@ export default function Passenger() {
 
   // Matched → the shared matched-ride screen (same one the driver sees).
   if (active?.status === 'matched') {
-    if (!matchId) {
+    if (matchId === undefined) {
       return (
         <Screen className="items-center justify-center" edges={['top']}>
           <ActivityIndicator color={colors.accent} />
+        </Screen>
+      );
+    }
+    // Couldn't resolve the match after retries — offer a way out instead of an
+    // endless spinner (H2).
+    if (matchId === null) {
+      return (
+        <Screen className="items-center justify-center px-6 gap-4" edges={['top']}>
+          <Text className="text-muted text-sm text-center">
+            Couldn't open your matched ride. Please try again.
+          </Text>
+          <Button label="Retry" onPress={loadActive} />
         </Screen>
       );
     }
@@ -98,6 +118,7 @@ function SearchForm() {
 
   const mapRef = useRef<MapView>(null);
   const fareSheetRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
+  const whenSheetRef = useRef<ElementRef<typeof BottomSheetModal>>(null);
 
   const [currentLocation, setCurrentLocation] = useState<Place | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
@@ -166,25 +187,7 @@ function SearchForm() {
   }, [pickup, drop]);
 
   function pickWhen() {
-    DateTimePickerAndroid.open({
-      value: when,
-      mode: 'date',
-      minimumDate: new Date(),
-      onChange: (e, d) => {
-        if (e.type !== 'set' || !d) return;
-        DateTimePickerAndroid.open({
-          value: d,
-          mode: 'time',
-          onChange: (e2, t) => {
-            if (e2.type !== 'set' || !t) return;
-            const c = new Date(d);
-            c.setHours(t.getHours(), t.getMinutes(), 0, 0);
-            setWhen(c);
-            setNow(false);
-          },
-        });
-      },
-    });
+    whenSheetRef.current?.present();
   }
 
   function openFareConfirm() {
@@ -316,6 +319,15 @@ function SearchForm() {
         onConfirm={confirmAndFindRides}
         loading={loading}
         error={confirmError}
+      />
+
+      <TimePickerSheet
+        ref={whenSheetRef}
+        onConfirm={(d) => {
+          setWhen(d);
+          setNow(false);
+          whenSheetRef.current?.dismiss();
+        }}
       />
     </View>
   );

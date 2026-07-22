@@ -1,15 +1,29 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { View, Text } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
-import { Radar } from '../../components/Radar';
+import { SleepingCat } from '../../components/SleepingCat';
 import { getRequestState, subscribeRequest, getMatchId, cancelRequest } from '../../lib/passenger';
 import { matchHaptic } from '../../lib/haptics';
+
+// Bug 6: rotate lightweight status lines so the wait reads as progress, not a
+// hang. No redesign — same Radar + text, just a cycling subtitle.
+const SEARCH_STEPS = [
+  'Searching nearby drivers…',
+  'Checking routes…',
+  'Finding the best match…',
+];
 
 export default function Waiting() {
   const { rid } = useLocalSearchParams<{ rid: string }>();
   const done = useRef(false);
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setStep((s) => (s + 1) % SEARCH_STEPS.length), 2200);
+    return () => clearInterval(t);
+  }, []);
 
   // On match, jump straight to the shared matched-ride screen (same one the
   // driver sees) instead of showing our own "Matched!" card here.
@@ -22,6 +36,16 @@ export default function Waiting() {
       matchHaptic();
       const matchId = await getMatchId(rid);
       if (matchId) router.replace(`/ride/matched/${matchId}`);
+      return;
+    }
+    // Terminal without a match (BUG 2): every targeted driver declined, or the
+    // request timed out. done.current is set on self-cancel below, so this only
+    // fires for a passive passenger whose search failed.
+    if ((s.status === 'cancelled' || s.status === 'expired') && !done.current) {
+      done.current = true;
+      Alert.alert('No ride found', 'No driver was available. Please try again.', [
+        { text: 'OK', onPress: () => router.replace('/(tabs)/passenger') },
+      ]);
     }
   }, [rid]);
 
@@ -35,6 +59,8 @@ export default function Waiting() {
   // Redirect (from the passenger tab's active-request gate), which replaces
   // history rather than pushing, so back() here can have nowhere to go.
   async function onCancel() {
+    // Suppress the "No ride found" alert for our OWN cancel (both set 'cancelled').
+    done.current = true;
     if (rid) await cancelRequest(rid);
     router.replace('/(tabs)/passenger');
   }
@@ -42,10 +68,10 @@ export default function Waiting() {
   return (
     <Screen className="items-center justify-center px-6" edges={['top', 'bottom']}>
       <View className="items-center gap-6">
-        <Radar />
+        <SleepingCat />
         <View className="items-center gap-1">
           <Text className="text-text text-lg font-bold">Finding your ride…</Text>
-          <Text className="text-muted text-sm">Waiting for a driver to accept.</Text>
+          <Text className="text-muted text-sm">{SEARCH_STEPS[step]}</Text>
         </View>
         <Button label="Cancel" variant="ghost" onPress={onCancel} />
       </View>
