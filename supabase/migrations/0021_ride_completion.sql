@@ -17,7 +17,7 @@ alter table profiles add column if not exists rating_count int not null default 
 -- Ratings — one per rater per match. Locked down (RLS on, zero client policies):
 -- only the security-definer RPCs below write it; clients read the denormalized
 -- profiles.rating_avg instead. Same pattern as notifications_outbox / admins.
-create table ratings (
+create table if not exists ratings (
   id uuid primary key default uuid_generate_v4(),
   match_id uuid not null references matches(id) on delete cascade,
   rater_id uuid not null references profiles(id) on delete cascade,
@@ -88,6 +88,10 @@ end $$;
 -- match_status (0008) redefined VERBATIM + one added output column
 -- (completed_at), so the matched screen can show "End ride" and react to
 -- completion. No other change to the function body/logic.
+-- Adding an output column changes the return type, which CREATE OR REPLACE
+-- can't do for a RETURNS TABLE function — must drop first. Safe: match_status
+-- is a leaf RPC called only from the app, no DB objects depend on it.
+drop function if exists match_status(uuid);
 create or replace function match_status(p_match_id uuid)
 returns table (
   kind text, my_role text,
