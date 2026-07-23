@@ -13,8 +13,8 @@ import { MapPreview } from '../../../components/MapPreview';
 import { VehicleSeats } from '../../../components/VehicleSeats';
 import { getMatchStatus, cancelMatch, endRide, subscribeMatch, type MatchStatus } from '../../../lib/match';
 import { subscribeRequest } from '../../../lib/passenger';
-import { decodeRoute, openNavigationTo } from '../../../lib/maps';
-import { formatDepart } from '../../../lib/format';
+import { decodeRoute, openNavigationTo, getEta, type Eta } from '../../../lib/maps';
+import { formatDepart, formatEta } from '../../../lib/format';
 import { useReducedMotion } from '../../../lib/reducedMotion';
 import { useSession } from '../../../store/session';
 import { ensureNotificationPermission, setActiveMatch } from '../../../lib/notifications';
@@ -65,6 +65,22 @@ export default function MatchedRide() {
     const s = await getMatchStatus(matchId);
     setStatus(s);
   }, [matchId]);
+
+  // F1 — driver-origin (route start) → pickup ETA, computed once when the match
+  // loads. Static in MVP (no live location), so no refresh affordance.
+  const [eta, setEta] = useState<Eta | null>(null);
+  useEffect(() => {
+    if (!status?.route_polyline || status.pickup_lat == null || status.pickup_lng == null) return;
+    const origin = decodeRoute(status.route_polyline)[0];
+    if (!origin) return;
+    let alive = true;
+    getEta(origin, { latitude: status.pickup_lat, longitude: status.pickup_lng }).then((e) => {
+      if (alive) setEta(e);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [status?.route_polyline, status?.pickup_lat, status?.pickup_lng]);
 
   useEffect(() => {
     load();
@@ -202,6 +218,15 @@ export default function MatchedRide() {
           </View>
           <Text className="text-muted text-xs capitalize">{status.other_role}</Text>
         </Animated.View>
+
+        {/* F1 ETA — the same driver-origin→pickup estimate, phrased per side. */}
+        {eta ? (
+          <Text className="text-accent text-sm font-medium text-center">
+            {status.my_role === 'driver'
+              ? `Pickup in ${formatEta(eta.seconds, eta.meters)}`
+              : `${status.other_name || 'Your driver'} is ${formatEta(eta.seconds)} away`}
+          </Text>
+        ) : null}
 
         {region ? (
           <MapPreview

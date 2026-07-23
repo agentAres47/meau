@@ -101,6 +101,35 @@ export function suggestedPrice(distanceKm: number): number {
   return Math.min(150, Math.max(20, Math.round(8 * distanceKm)));
 }
 
+export type Eta = { seconds: number; meters: number; approximate: boolean };
+
+// F1 — driver-origin → pickup ETA. Reads the `duration` the Directions call
+// already returns (getRoute throws it away). MVP has no live location, so this
+// is the driver's ORIGIN to the pickup: honest, needs no permission, and is
+// constant — compute once when the screen opens (a "refresh" would return the
+// same value until live tracking exists). Falls back to a straight-line
+// estimate at an assumed city speed so the screen never blocks on Directions.
+export async function getEta(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+): Promise<Eta> {
+  if (KEY) {
+    try {
+      const url = `${BASE}/directions/json?origin=${from.latitude},${from.longitude}&destination=${to.latitude},${to.longitude}&key=${KEY}`;
+      const res = await fetch(url).then((r) => r.json());
+      const leg = res.routes?.[0]?.legs?.[0];
+      if (leg?.duration?.value != null) {
+        return { seconds: leg.duration.value, meters: leg.distance?.value ?? 0, approximate: false };
+      }
+    } catch {
+      // fall through to the straight-line estimate
+    }
+  }
+  // ponytail: ~22 km/h city average — good enough for a fallback "~N min".
+  const km = haversineKm(from, to);
+  return { seconds: Math.round((km / 22) * 3600), meters: Math.round(km * 1000), approximate: true };
+}
+
 // One-tap: open the device's maps app with turn-by-turn to a coordinate.
 // Android → Google Maps navigation intent; iOS → Apple/Google; falls back to the
 // universal Maps URL. No native module — just Linking (core RN).
@@ -118,7 +147,10 @@ export async function openNavigationTo(latitude: number, longitude: number): Pro
   }
 }
 
-function haversineKm(a: Place, b: Place): number {
+function haversineKm(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number }
+): number {
   const R = 6371;
   const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
   const dLng = ((b.longitude - a.longitude) * Math.PI) / 180;

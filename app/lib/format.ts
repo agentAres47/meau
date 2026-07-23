@@ -12,3 +12,11 @@ export function formatDepart(input: Date | string): string {
         : d.toLocaleDateString([], { day: 'numeric', month: 'short' });
   return `${day}, ${time}`;
 }
+
+// F1 ETA — "~6 min", optionally "~6 min · 1.8 km". Rounds up to at least 1 min
+// so a nearby pickup never reads "~0 min". The "~" carries the estimate.
+export function formatEta(seconds: number, meters?: number): string {
+  const min = Math.max(1, Math.round(seconds / 60));
+  const base = `~${min} min`;
+  return meters == null ? base : `${base} · ${(meters / 1000).toFixed(1)} km`;
+}

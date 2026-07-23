@@ -10,12 +10,13 @@ import { MapPreview } from '../../../components/MapPreview';
 import { colors } from '../../../theme/tokens';
 import { useSession } from '../../../store/session';
 import { getIncomingDetail, acceptRequest, declineTarget, type IncomingDetail } from '../../../lib/requests';
-import { decodeRoute } from '../../../lib/maps';
-import { formatDepart } from '../../../lib/format';
+import { decodeRoute, getEta, type Eta } from '../../../lib/maps';
+import { formatDepart, formatEta } from '../../../lib/format';
 import { matchHaptic } from '../../../lib/haptics';
 
 // Dedicated decision screen a request push opens into (BUG 1). Minimal: reuses
-// existing components + accept/decline logic; no new design system, no ETA.
+// existing components + accept/decline logic. Shows the driver-origin→pickup
+// ETA (F1) so the driver can judge the detour before accepting.
 export default function RideRequest() {
   const { requestId } = useLocalSearchParams<{ requestId: string }>();
   const profile = useSession((s) => s.profile);
@@ -31,6 +32,21 @@ export default function RideRequest() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // F1 — driver-origin (route start) → pickup ETA, computed once on load.
+  const [eta, setEta] = useState<Eta | null>(null);
+  useEffect(() => {
+    if (!detail?.route_polyline) return;
+    const origin = decodeRoute(detail.route_polyline)[0];
+    if (!origin) return;
+    let alive = true;
+    getEta(origin, { latitude: detail.pickup_lat, longitude: detail.pickup_lng }).then((e) => {
+      if (alive) setEta(e);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [detail?.route_polyline, detail?.pickup_lat, detail?.pickup_lng]);
 
   async function onAccept() {
     if (!detail || !profile) return;
@@ -111,8 +127,12 @@ export default function RideRequest() {
           <Text className="text-text text-sm" numberOfLines={1}>{detail.pickup_label}</Text>
           <Text className="text-muted text-xs">to</Text>
           <Text className="text-text text-sm" numberOfLines={1}>{detail.drop_label}</Text>
+          {eta ? (
+            <Text className="text-accent text-xs font-medium mt-1">
+              Pickup in {formatEta(eta.seconds, eta.meters)}
+            </Text>
+          ) : null}
           <View className="flex-row justify-between mt-2">
-            {/* TODO(Phase2): show estimated pickup (ETA/F1) here. */}
             <Info label="Departs" value={formatDepart(detail.depart_at)} />
             <Info label="Fare" value={`₹${detail.offered_price}`} />
           </View>
