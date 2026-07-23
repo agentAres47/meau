@@ -16,7 +16,8 @@ const SEARCH_STEPS = [
 ];
 
 export default function Waiting() {
-  const { rid } = useLocalSearchParams<{ rid: string }>();
+  const { rid, n } = useLocalSearchParams<{ rid: string; n?: string }>();
+  const count = n ? parseInt(n, 10) : 0;
   const done = useRef(false);
   const [step, setStep] = useState(0);
 
@@ -70,7 +71,9 @@ export default function Waiting() {
       <View className="items-center gap-6">
         <SleepingCat />
         <View className="items-center gap-1">
-          <Text className="text-text text-lg font-bold">Finding your ride…</Text>
+          <Text className="text-text text-lg font-bold">
+            {count > 1 ? `Asked ${count} drivers…` : 'Finding your ride…'}
+          </Text>
           <Text className="text-muted text-sm">{SEARCH_STEPS[step]}</Text>
         </View>
         <Button label="Cancel" variant="ghost" onPress={onCancel} />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { Screen } from '../../components/Screen';
-import { ChevronLeft, Search, BadgeCheck, Route } from 'lucide-react-native';
+import { ChevronLeft, Search, BadgeCheck, Route, Check } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -17,18 +17,31 @@ import { formatDepart } from '../../lib/format';
 
 export default function SearchResults() {
   const { requestId, pickup, drop, offer, matches } = useSearch();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  async function request(tokenId: string) {
-    if (!requestId) return;
-    setBusy(tokenId);
+  function toggle(tokenId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(tokenId)) next.delete(tokenId);
+      else next.add(tokenId);
+      return next;
+    });
+  }
+
+  // F3 — fan out to every selected driver at once; the first to accept wins and
+  // the rest auto-void (accept_ride_request dismisses sibling targets, and F7
+  // push cancels the losers' notifications).
+  async function requestSelected() {
+    if (!requestId || selected.size === 0) return;
+    setBusy(true);
     try {
-      await requestDrivers(requestId, [tokenId]);
-      router.push(`/ride/waiting?rid=${requestId}`);
+      await requestDrivers(requestId, [...selected]);
+      router.push(`/ride/waiting?rid=${requestId}&n=${selected.size}`);
     } catch {
-      // keep the button; user can retry
+      // keep the selection; user can retry
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -68,19 +81,33 @@ export default function SearchResults() {
           />
         </View>
       ) : (
-        <ScrollView contentContainerClassName="px-6 pt-2 pb-6 gap-4">
-          {matches.map((m) => (
-            <MatchCard
-              key={m.token_id}
-              match={m}
-              pickup={pickup}
-              drop={drop}
-              offer={offer}
-              busy={busy === m.token_id}
-              onRequest={() => request(m.token_id)}
-            />
-          ))}
-        </ScrollView>
+        <>
+          <Text className="text-muted text-xs px-6 pb-1">
+            Select one or more drivers — the first to accept gets you.
+          </Text>
+          <ScrollView contentContainerClassName="px-6 pt-1 pb-6 gap-4">
+            {matches.map((m) => (
+              <MatchCard
+                key={m.token_id}
+                match={m}
+                pickup={pickup}
+                drop={drop}
+                offer={offer}
+                selected={selected.has(m.token_id)}
+                onToggle={() => toggle(m.token_id)}
+              />
+            ))}
+          </ScrollView>
+          {selected.size > 0 ? (
+            <View className="px-6 pt-2 pb-2 border-t border-surface2">
+              <Button
+                label={`Request ${selected.size} driver${selected.size > 1 ? 's' : ''}`}
+                loading={busy}
+                onPress={requestSelected}
+              />
+            </View>
+          ) : null}
+        </>
       )}
     </Screen>
   );
@@ -91,15 +118,15 @@ function MatchCard({
   pickup,
   drop,
   offer,
-  busy,
-  onRequest,
+  selected,
+  onToggle,
 }: {
   match: Match;
   pickup: Place | null;
   drop: Place | null;
   offer: number;
-  busy: boolean;
-  onRequest: () => void;
+  selected: boolean;
+  onToggle: () => void;
 }) {
   const path = decodeRoute(match.route_polyline);
   const markers = pickup && drop ? [pickup, drop] : [path[0], path[path.length - 1]];
@@ -113,7 +140,13 @@ function MatchCard({
   };
 
   return (
-    <Card className="gap-3">
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className="active:opacity-90"
+    >
+    <Card className={`gap-3 border ${selected ? 'border-accent' : 'border-transparent'}`}>
       <View className="flex-row items-center gap-3">
         <Avatar name={match.driver.name || 'Driver'} uri={match.driver.photo} size={40} />
         <View className="flex-1">
@@ -149,7 +182,19 @@ function MatchCard({
         Departs {formatDepart(match.depart_at)} · {match.time_delta_min} min from your time
       </Text>
 
-      <Button label="Request this ride" loading={busy} onPress={onRequest} />
+      {/* Selection affordance (replaces the old per-card Request button — F3
+          batches the request across every selected driver via the bottom CTA). */}
+      <View
+        className={`flex-row items-center justify-center gap-1.5 rounded-full py-2 ${
+          selected ? 'bg-accent' : 'bg-surface2'
+        }`}
+      >
+        {selected ? <Check color={colors.bg} size={16} /> : null}
+        <Text className={`text-sm font-medium ${selected ? 'text-bg' : 'text-muted'}`}>
+          {selected ? 'Selected' : 'Tap to select'}
+        </Text>
+      </View>
     </Card>
+    </Pressable>
   );
 }
