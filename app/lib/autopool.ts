@@ -132,8 +132,12 @@ export async function resumeHref(profileId: string): Promise<string | null> {
     if (!matchId) return '/(tabs)/autopool';
     // Don't restore a ride that's already finished — otherwise a completed pool
     // relaunches into its chat, which immediately routes to the rate screen,
-    // trapping the user there on every restart (#12).
-    const { data } = await supabase.from('matches').select('completed_at').eq('id', matchId).maybeSingle();
+    // trapping the user there on every restart (#12). Fail CLOSED on any query
+    // hiccup (don't restore) rather than open (restore anyway) — the real fix
+    // for the sticky-notification version of #12 is in notifications.ts, but a
+    // silent error here shouldn't independently reintroduce the same trap.
+    const { data, error } = await supabase.from('matches').select('completed_at').eq('id', matchId).maybeSingle();
+    if (error) return null;
     if ((data as { completed_at: string | null } | null)?.completed_at) return null;
     return `/match/${matchId}`;
   }

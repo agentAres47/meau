@@ -147,8 +147,21 @@ export async function clearNotifications(): Promise<void> {
 }
 
 // Cold start: the data of the notification the app was launched from, if any.
+// #12 — getLastNotificationResponseAsync is STICKY: it keeps returning the same
+// response on every subsequent cold start until explicitly cleared (a documented
+// expo-notifications gotcha). Without clearing it, the very first "tap to rate"
+// notification ever tapped gets replayed on every future launch, permanently
+// routing back to the rate screen no matter what the user does. Clear it the
+// moment we've read it so it's a one-shot.
 export async function getInitialNotificationData(): Promise<unknown | null> {
   const response = await Notifications.getLastNotificationResponseAsync();
+  if (response) {
+    try {
+      await Notifications.clearLastNotificationResponseAsync();
+    } catch {
+      // best-effort
+    }
+  }
   return response?.notification.request.content.data ?? null;
 }
 
