@@ -160,5 +160,6 @@ export async function getAutopoolChatMeta(matchId: string, myProfileId: string):
 
 export function autopoolSummary(a: AutopoolChatMeta): string {
   const when = a.slotTime ? formatDepart(a.slotTime) : 'now';
-  return `You're pooling ${a.routeLabel} at ${when}. Split ₹${a.splitFare} each. Coordinate pickup point below.`;
+  // Split-fare estimate omitted until the pricing algorithm is reworked (#7).
+  return `You're pooling ${a.routeLabel} at ${when}. Coordinate the pickup point below.`;
 }

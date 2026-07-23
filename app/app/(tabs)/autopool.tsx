@@ -214,7 +214,7 @@ function Picker({
                 >
                   <View className="flex-row items-center justify-between">
                     <Text className="text-text text-base font-semibold">{r.label}</Text>
-                    <Text className="text-muted text-xs">~₹{r.typicalFare} full auto</Text>
+                    {/* Fare estimate hidden until pricing is reworked (#7). */}
                   </View>
                 </View>
               </Pressable>

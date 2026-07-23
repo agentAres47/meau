@@ -1,7 +1,7 @@
 import '../global.css';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -59,6 +59,10 @@ export default function RootLayout() {
   const subscribe = useSession((s) => s.subscribe);
   const profileId = useSession((s) => s.profile?.id);
   const status = useSession((s) => s.status);
+  // True once expo-router's navigator has actually mounted. Routing before this
+  // throws "navigate before mounting the Root Layout" — the cold-start-from-
+  // notification crash.
+  const navReady = !!useRootNavigationState()?.key;
   // Payload of a tapped notification awaiting a route. Held until the user is
   // authed ('ready') so a COLD-START tap (status still 'loading' at boot) isn't
   // dropped, and a tap never deep-links past the auth gate.
@@ -85,17 +89,16 @@ export default function RootLayout() {
     return addNotificationTapListener((data) => setPendingRoute(data));
   }, []);
 
-  // Flush a pending route once authed; drop it if the session resolves to a
-  // non-ready state (a push only ever targets an authed user).
+  // Flush a pending route once authed AND the navigator has mounted; drop it if
+  // the session resolves to a non-ready state (a push only ever targets an
+  // authed user). Waiting on navReady prevents a cold-start tap from routing
+  // before the Root Layout mounts (a hard crash).
   useEffect(() => {
     if (!pendingRoute) return;
-    if (status === 'ready') {
-      routeFromData(pendingRoute);
-      setPendingRoute(null);
-    } else if (status !== 'loading') {
-      setPendingRoute(null);
-    }
-  }, [status, pendingRoute]);
+    if (status === 'loading' || !navReady) return; // keep it queued
+    if (status === 'ready') routeFromData(pendingRoute);
+    setPendingRoute(null);
+  }, [status, pendingRoute, navReady]);
 
   useAuthGuard();
 

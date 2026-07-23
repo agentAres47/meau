@@ -128,6 +128,11 @@ export default function Driver() {
   const insets = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<Place | null>(null);
+  // The Driver tab mounts lazily (first tab switch), so its native map is often
+  // still initializing when currentLocation/origin resolve — a camera move then
+  // is dropped, stranding the view at DEFAULT_REGION. Gate the camera effect on
+  // this and it re-runs the move the moment the map is ready.
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     currentPlace().then(setCurrentLocation);
@@ -190,6 +195,7 @@ export default function Driver() {
   // Camera follows: a live token's route > the in-progress pickup/drop draft >
   // just-picked origin > current location. Mirrors passenger.tsx's structure.
   useEffect(() => {
+    if (!mapReady) return; // wait for the native map, or the move is dropped
     if (token && routeA && routeB) {
       mapRef.current?.animateToRegion(regionFor(routeA, routeB), 700);
     } else if (origin && dest) {
@@ -206,7 +212,7 @@ export default function Driver() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token?.id, origin, dest, currentLocation?.label]);
+  }, [mapReady, token?.id, origin, dest, currentLocation?.label]);
 
   function pickWhen() {
     whenSheetRef.current?.present();
@@ -290,6 +296,7 @@ export default function Driver() {
         path={mapPath}
         mapPadding={mapPadding}
         recenterBottomOffset={dockFootprint + SHEET_SNAP_POINTS[0] + spacing.md}
+        onReady={() => setMapReady(true)}
       />
 
       {/* Floating header — pickup/drop picker while posting (the literal same
@@ -404,7 +411,6 @@ export default function Driver() {
         seats={seats}
         onSeatsChange={setSeats}
         maxSeats={vehicle ? Math.min(vehicle.seats, 6) : 6}
-        price={price}
         onConfirm={confirmStartRide}
         loading={startBusy}
         error={confirmError}

@@ -7,7 +7,6 @@ import {
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
   Alert,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -60,6 +59,9 @@ export default function MatchChat() {
   const listRef = useRef<FlatList<Message>>(null);
   const insets = useSafeAreaInsets();
   const ratedRef = useRef(false);
+  // Measured so KeyboardAvoidingView knows how much sits above it (status bar +
+  // header) to offset the keyboard correctly.
+  const [headerH, setHeaderH] = useState(0);
 
   // Bug 7: suppress chat pushes for THIS match while it's on screen.
   useFocusEffect(
@@ -215,7 +217,10 @@ export default function MatchChat() {
   return (
     <Screen edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2">
+      <View
+        onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+        className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2"
+      >
         <Pressable onPress={onBack} accessibilityLabel="Back" className="active:opacity-70 -ml-1">
           <ChevronLeft color={colors.text} size={26} />
         </Pressable>
@@ -259,9 +264,16 @@ export default function MatchChat() {
         )}
       </View>
 
+      {/* `padding` on both platforms: Android's native window-resize is off
+          under Expo SDK 54 edge-to-edge, so `undefined` behavior let the
+          keyboard overlay the composer. Offset accounts for the status bar +
+          header that sit above this view.
+          ponytail: if some Android devices still overlap under edge-to-edge,
+          swap RN's KeyboardAvoidingView for react-native-keyboard-controller. */}
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
+        keyboardVerticalOffset={insets.top + headerH}
       >
         <FlatList
           ref={listRef}

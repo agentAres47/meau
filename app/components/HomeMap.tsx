@@ -24,6 +24,11 @@ type Props = {
   // persistent bottom sheet (screen-specific, so it can't live in this
   // generic component).
   recenterBottomOffset?: number;
+  // Fires once the native map finishes initializing. Callers that drive the
+  // camera imperatively (animateToRegion) must wait for this — a move issued
+  // before the native map exists is silently dropped, leaving the camera at
+  // initialRegion (the "driver map is offset from my location" bug).
+  onReady?: () => void;
 };
 
 // Full-screen interactive map — the canvas the passenger home screen floats
@@ -31,7 +36,7 @@ type Props = {
 // REDESIGN_PLAN §Locked decisions); camera movement is driven imperatively
 // by the parent via the forwarded MapView ref (animateToRegion).
 export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
-  { initialRegion, currentLocation, pickup, drop, path, mapPadding, recenterBottomOffset = 24 },
+  { initialRegion, currentLocation, pickup, drop, path, mapPadding, recenterBottomOffset = 24, onReady },
   forwardedRef
 ) {
   // react-native-maps (Android) crashes with a NullPointerException if a
@@ -78,7 +83,10 @@ export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         mapPadding={mapReady ? mapPadding : undefined}
-        onMapReady={() => setMapReady(true)}
+        onMapReady={() => {
+          setMapReady(true);
+          onReady?.();
+        }}
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}

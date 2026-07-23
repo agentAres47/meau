@@ -9,7 +9,6 @@ type Props = {
   seats: number;
   onSeatsChange: (value: number) => void;
   maxSeats: number;
-  price: number; // auto-computed from route distance — shown, not editable
   onConfirm: () => void;
   loading?: boolean;
   error?: string | null;
@@ -19,7 +18,7 @@ type Props = {
 // slider: price is auto-suggested from the route distance (same suggestedPrice
 // used elsewhere), the driver just confirms how many seats are open.
 export const SeatsConfirmSheet = forwardRef<ElementRef<typeof BottomSheetModal>, Props>(
-  function SeatsConfirmSheet({ seats, onSeatsChange, maxSeats, price, onConfirm, loading, error }, ref) {
+  function SeatsConfirmSheet({ seats, onSeatsChange, maxSeats, onConfirm, loading, error }, ref) {
     return (
       <BottomSheetModal
         ref={ref}
@@ -34,10 +33,9 @@ export const SeatsConfirmSheet = forwardRef<ElementRef<typeof BottomSheetModal>,
             <Stepper value={seats} onChange={onSeatsChange} min={1} max={maxSeats} />
           </View>
 
-          <View className="flex-row items-center justify-between">
-            <Text className="text-muted text-sm">Suggested price</Text>
-            <Text className="text-text text-base font-semibold tabular-nums">₹{price}/seat</Text>
-          </View>
+          {/* Suggested-price row hidden until the pricing algorithm is reworked
+              (#7). The token is still posted with its computed price (from
+              driver.tsx); riders coordinate the fare in chat for now. */}
 
           {error ? <Text className="text-danger text-sm">{error}</Text> : null}
 
