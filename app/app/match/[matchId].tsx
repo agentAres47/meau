@@ -1,21 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  Pressable,
-  TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Alert,
-} from 'react-native';
+import { View, Text, FlatList, Pressable, TextInput, ScrollView, Alert } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../../components/Screen';
 import { ChevronLeft, Send, ShieldCheck, Users } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { formatDepart } from '../../lib/format';
-import { setActiveMatch, ensureNotificationPermission } from '../../lib/notifications';
+import { setActiveMatch, ensureNotificationPermission, clearNotifications } from '../../lib/notifications';
 import { endRide, subscribeMatch, getMatchCompletedAt } from '../../lib/match';
 import { matchHaptic } from '../../lib/haptics';
 import { Avatar } from '../../components/Avatar';
@@ -63,10 +55,15 @@ export default function MatchChat() {
   // header) to offset the keyboard correctly.
   const [headerH, setHeaderH] = useState(0);
 
-  // Bug 7: suppress chat pushes for THIS match while it's on screen.
+  // #7: the messaging screen is the ONLY place we suppress this match's pushes
+  // (the ride/matched screen now lets them through). Opening the chat also
+  // clears any already-delivered notifications from the tray.
   useFocusEffect(
     useCallback(() => {
-      if (matchId) setActiveMatch(matchId);
+      if (matchId) {
+        setActiveMatch(matchId);
+        clearNotifications();
+      }
       return () => setActiveMatch(null);
     }, [matchId])
   );
@@ -264,14 +261,11 @@ export default function MatchChat() {
         )}
       </View>
 
-      {/* `padding` on both platforms: Android's native window-resize is off
-          under Expo SDK 54 edge-to-edge, so `undefined` behavior let the
-          keyboard overlay the composer. Offset accounts for the status bar +
-          header that sit above this view.
-          ponytail: if some Android devices still overlap under edge-to-edge,
-          swap RN's KeyboardAvoidingView for react-native-keyboard-controller. */}
+      {/* react-native-keyboard-controller's KeyboardAvoidingView — reliable on
+          Android edge-to-edge (RN's core one is not). Offset = the status bar +
+          header sitting above this view. */}
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior="padding"
         keyboardVerticalOffset={insets.top + headerH}
       >

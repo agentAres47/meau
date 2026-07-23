@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../../components/Screen';
 import { ShieldCheck } from 'lucide-react-native';
 import { colors, motion } from '../../../theme/tokens';
@@ -11,13 +11,13 @@ import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { MapPreview } from '../../../components/MapPreview';
 import { VehicleSeats } from '../../../components/VehicleSeats';
-import { getMatchStatus, cancelMatch, endRide, subscribeMatch, type MatchStatus } from '../../../lib/match';
+import { getMatchStatus, cancelMatch, endRide, subscribeMatch, getMatchOfferedPrice, type MatchStatus } from '../../../lib/match';
 import { subscribeRequest } from '../../../lib/passenger';
 import { decodeRoute, openNavigationTo, getEta, type Eta } from '../../../lib/maps';
 import { formatDepart, formatEta } from '../../../lib/format';
 import { useReducedMotion } from '../../../lib/reducedMotion';
 import { useSession } from '../../../store/session';
-import { ensureNotificationPermission, setActiveMatch } from '../../../lib/notifications';
+import { ensureNotificationPermission } from '../../../lib/notifications';
 
 // Shared by both sides of a match so driver + passenger see the exact same
 // "we're on the same page" screen: each other's info, the route, a seat
@@ -38,13 +38,8 @@ export default function MatchedRide() {
     if (profileId) ensureNotificationPermission(profileId);
   }, [profileId]);
 
-  // Bug 8: suppress the "Ride Accepted" push for THIS match while it's on screen.
-  useFocusEffect(
-    useCallback(() => {
-      if (matchId) setActiveMatch(matchId);
-      return () => setActiveMatch(null);
-    }, [matchId])
-  );
+  // #7: the ride/matched screen no longer suppresses this match's pushes — only
+  // the chat screen does. So a new message buzzes while you're on the ride view.
 
   // Signature match-moment entrance (11-UI-DESIGN.md) — a quiet spring/fade
   // on the "you matched" block, once, on mount. Everything else on this
@@ -64,6 +59,20 @@ export default function MatchedRide() {
     if (!matchId) return;
     const s = await getMatchStatus(matchId);
     setStatus(s);
+  }, [matchId]);
+
+  // #13 — the passenger's offered price is the final agreed fare (shown instead
+  // of the driver's token price).
+  const [fare, setFare] = useState<number | null>(null);
+  useEffect(() => {
+    if (!matchId) return;
+    let alive = true;
+    getMatchOfferedPrice(matchId).then((p) => {
+      if (alive) setFare(p);
+    });
+    return () => {
+      alive = false;
+    };
   }, [matchId]);
 
   // F1 — driver-origin (route start) → pickup ETA, computed once when the match
@@ -247,7 +256,7 @@ export default function MatchedRide() {
           </Text>
           <View className="flex-row justify-between mt-2">
             <Text className="text-muted text-xs">{status.depart_at ? formatDepart(status.depart_at) : ''}</Text>
-            <Text className="text-text text-sm font-semibold tabular-nums">₹{status.price_per_seat}/seat</Text>
+            <Text className="text-text text-sm font-semibold tabular-nums">₹{fare ?? status.price_per_seat}</Text>
           </View>
         </Card>
 

@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, channelTopic } from './supabase';
 import { callMatching } from './passenger';
 
 export type Incoming = {
@@ -20,7 +20,7 @@ export async function getIncoming(driverId: string): Promise<Incoming[]> {
 // Realtime: any change to this driver's targets -> callback (refetch).
 export function subscribeDriverTargets(driverId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`targets-${driverId}`)
+    .channel(channelTopic(`targets-${driverId}`))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'request_targets', filter: `driver_id=eq.${driverId}` },
@@ -81,7 +81,7 @@ export async function getIncomingDetail(requestId: string): Promise<IncomingDeta
 // driver's matched-passenger list updates without a manual refresh.
 export function subscribeMatchedRequests(driverId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`matched-reqs-${driverId}`)
+    .channel(channelTopic(`matched-reqs-${driverId}`))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'ride_requests', filter: `matched_driver_id=eq.${driverId}` },

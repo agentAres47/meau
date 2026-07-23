@@ -136,6 +136,16 @@ export function routeFromData(data: unknown): void {
   else if (d.type === 'rate' && d.matchId) router.push(`/ride/rate/${d.matchId}`);
 }
 
+// Clear the notification tray — called when a chat opens (#7: once you're in
+// the message box, dismiss the pending notifications for it).
+export async function clearNotifications(): Promise<void> {
+  try {
+    await Notifications.dismissAllNotificationsAsync();
+  } catch {
+    // best-effort
+  }
+}
+
 // Cold start: the data of the notification the app was launched from, if any.
 export async function getInitialNotificationData(): Promise<unknown | null> {
   const response = await Notifications.getLastNotificationResponseAsync();

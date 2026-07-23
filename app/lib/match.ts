@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, channelTopic } from './supabase';
 
 export type MatchStatus = {
   kind: 'ride' | 'autopool';
@@ -83,6 +83,13 @@ export async function getRideHistory(): Promise<HistoryEntry[]> {
   return (data as HistoryEntry[]) ?? [];
 }
 
+// #13 — the passenger's offered price is the agreed fare. Readable by either
+// participant via a security-definer fn (see migration 0022).
+export async function getMatchOfferedPrice(matchId: string): Promise<number | null> {
+  const { data } = await supabase.rpc('match_offered_price', { p_match_id: matchId });
+  return (data as number | null) ?? null;
+}
+
 // Plain select (RLS: matches_participant_select already permits this) — used by
 // the autopool chat screen after a subscribeMatch tick to check for completion,
 // without needing a new RPC.
@@ -95,7 +102,7 @@ export async function getMatchCompletedAt(matchId: string): Promise<string | nul
 // didn't tap "End ride" gets prompted to rate live, no refresh needed.
 export function subscribeMatch(matchId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`match-${matchId}`)
+    .channel(channelTopic(`match-${matchId}`))
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },

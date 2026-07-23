@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../../../components/Screen';
 import { Star } from 'lucide-react-native';
@@ -49,8 +50,8 @@ export default function RateRide() {
   return (
     <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        className="flex-1 items-center justify-center px-6"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}
+        behavior="padding"
       >
       {!sentiment ? (
         <View className="items-center gap-8 w-full">

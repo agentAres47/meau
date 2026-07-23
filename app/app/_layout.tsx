@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,7 +11,7 @@ import { colors } from '../theme/tokens';
 import { motion } from '../theme/tokens';
 import { useSession } from '../store/session';
 import {
-  registerPushToken,
+  ensureNotificationPermission,
   routeFromData,
   getInitialNotificationData,
   addNotificationTapListener,
@@ -73,11 +74,13 @@ export default function RootLayout() {
     return subscribe();
   }, [hydrate, subscribe]);
 
-  // F7: once a verified profile exists, store this device's push token (only if
-  // permission was already granted — the contextual prompt lives on the matched
-  // screen). Idempotent, so re-running on profile change is harmless.
+  // #4: ask for notification permission as soon as a verified profile exists
+  // (i.e. right after first login), not only at a later contextual moment — one
+  // phone never got the contextual prompt and so never received pushes.
+  // ensureNotificationPermission is a no-op once the choice is made, and
+  // registers the token when granted.
   useEffect(() => {
-    if (profileId) registerPushToken(profileId);
+    if (profileId) ensureNotificationPermission(profileId);
   }, [profileId]);
 
   // F7: capture taps (warm) + the launch notification (cold start). Routing is
@@ -104,6 +107,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <KeyboardProvider>
       <SafeAreaProvider>
         <BottomSheetModalProvider>
           <QueryClientProvider client={queryClient}>
@@ -120,6 +124,7 @@ export default function RootLayout() {
           </QueryClientProvider>
         </BottomSheetModalProvider>
       </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

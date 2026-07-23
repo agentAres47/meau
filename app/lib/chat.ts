@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, channelTopic } from './supabase';
 import { formatDepart } from './format';
 
 export type ChatMeta = {
@@ -68,7 +68,7 @@ export async function ensureSystemMessage(matchId: string, senderId: string, bod
 // Realtime: new messages in this match -> callback with the inserted row.
 export function subscribeMessages(matchId: string, onInsert: (m: Message) => void): () => void {
   const channel = supabase
-    .channel(`messages-${matchId}`)
+    .channel(channelTopic(`messages-${matchId}`))
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `match_id=eq.${matchId}` },

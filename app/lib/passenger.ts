@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, channelTopic } from './supabase';
 import type { Place } from './maps';
 
 const MATCHING = process.env.EXPO_PUBLIC_MATCHING_SERVICE_URL;
@@ -95,7 +95,7 @@ export async function getRequestState(requestId: string): Promise<RequestState |
 // Realtime on the passenger's own request row -> callback on any change.
 export function subscribeRequest(requestId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`request-${requestId}`)
+    .channel(channelTopic(`request-${requestId}`))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'ride_requests', filter: `id=eq.${requestId}` },

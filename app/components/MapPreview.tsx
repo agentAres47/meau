@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Polyline, Marker, type LatLng } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE, Polyline, type LatLng } from 'react-native-maps';
 import { colors } from '../theme/tokens';
 import { DARK_MAP_STYLE } from '../lib/mapStyle';
+import { PickupMarker, DestinationMarker } from './MapMarkers';
 
 type Props = {
   region: { latitude: number; longitude: number; latitudeDelta?: number; longitudeDelta?: number };
@@ -24,7 +25,15 @@ export function MapPreview({ region, path, markers, height = 160 }: Props) {
       pointerEvents="none"
     >
       {path ? <Polyline coordinates={path} strokeColor={colors.accent} strokeWidth={3} /> : null}
-      {markers?.map((m, i) => <Marker key={i} coordinate={m} />)}
+      {/* Custom pink/green markers (the last one is the destination pin) — never
+          Google's default red teardrop, so previews match the full-screen maps. */}
+      {markers?.map((m, i) =>
+        i === markers.length - 1 ? (
+          <DestinationMarker key={i} coordinate={m} />
+        ) : (
+          <PickupMarker key={i} coordinate={m} />
+        )
+      )}
     </MapView>
   );
 }

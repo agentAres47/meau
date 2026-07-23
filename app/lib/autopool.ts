@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, channelTopic } from './supabase';
 import { formatDepart } from './format';
 
 export type RouteCode = 'AMITY_STATION' | 'STATION_AMITY' | 'AMITY_IB' | 'IB_AMITY';
@@ -74,7 +74,7 @@ export async function cancelPoolSession(sessionId: string): Promise<void> {
 // Realtime on the passenger's own session row -> callback on any change.
 export function subscribePoolSession(sessionId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`pool-${sessionId}`)
+    .channel(channelTopic(`pool-${sessionId}`))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'auto_pool_sessions', filter: `id=eq.${sessionId}` },
@@ -99,7 +99,7 @@ export async function leavePool(matchId: string): Promise<void> {
 // participant who DIDN'T leave gets kicked back to searching live.
 export function subscribeMatchStatus(matchId: string, onChange: (status: string) => void): () => void {
   const channel = supabase
-    .channel(`match-status-${matchId}`)
+    .channel(channelTopic(`match-status-${matchId}`))
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'matches', filter: `id=eq.${matchId}` },
@@ -129,7 +129,13 @@ export async function resumeHref(profileId: string): Promise<string | null> {
   if (!s) return null;
   if (s.status === 'matched' && s.pool_group_id) {
     const matchId = await getPoolMatchId(s.pool_group_id);
-    return matchId ? `/match/${matchId}` : '/(tabs)/autopool';
+    if (!matchId) return '/(tabs)/autopool';
+    // Don't restore a ride that's already finished — otherwise a completed pool
+    // relaunches into its chat, which immediately routes to the rate screen,
+    // trapping the user there on every restart (#12).
+    const { data } = await supabase.from('matches').select('completed_at').eq('id', matchId).maybeSingle();
+    if ((data as { completed_at: string | null } | null)?.completed_at) return null;
+    return `/match/${matchId}`;
   }
   return '/(tabs)/autopool'; // 'waiting'
 }

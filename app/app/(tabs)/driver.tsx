@@ -232,7 +232,9 @@ export default function Driver() {
     setStartBusy(true);
     try {
       const departAt = now ? new Date() : when;
-      if (departAt.getTime() <= Date.now()) throw new Error('Pick a departure time in the future.');
+      // Only a *scheduled* time must be in the future. For "now", departAt is
+      // captured a few ms before this check, so guarding it would always fail.
+      if (!now && departAt.getTime() <= Date.now()) throw new Error('Pick a departure time in the future.');
       await createRideToken({
         driverId: profile!.id,
         vehicleId: vehicle!.id,
