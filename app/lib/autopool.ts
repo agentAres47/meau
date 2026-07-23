@@ -120,6 +120,20 @@ export async function getPoolMatchId(poolGroupId: string): Promise<string | null
   return (data?.id as string) ?? null;
 }
 
+// #2 — cold-start restore. If the user has a live pool session, return the href
+// that drops them back into it instead of the default home tab: the pooled-match
+// chat when matched, otherwise the Auto Pool tab (which restores the Waiting
+// state). null = nothing to restore -> caller falls back to home.
+export async function resumeHref(profileId: string): Promise<string | null> {
+  const s = await getActivePoolSession(profileId);
+  if (!s) return null;
+  if (s.status === 'matched' && s.pool_group_id) {
+    const matchId = await getPoolMatchId(s.pool_group_id);
+    return matchId ? `/match/${matchId}` : '/(tabs)/autopool';
+  }
+  return '/(tabs)/autopool'; // 'waiting'
+}
+
 export type AutopoolChatMeta = {
   routeLabel: string;
   slotTime: string | null;
