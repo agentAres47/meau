@@ -72,7 +72,7 @@ export default function RideRequest() {
     setError(null);
     try {
       await declineTarget(detail.target_id);
-      router.replace('/(tabs)/driver');
+      router.dismissTo('/(tabs)/driver');
     } catch {
       setError('Could not decline. Try again.');
       setBusy(false);
@@ -96,7 +96,7 @@ export default function RideRequest() {
           <Text className="text-muted text-sm text-center">
             This request is no longer available.
           </Text>
-          <Button label="Back" variant="secondary" onPress={() => router.replace('/(tabs)/driver')} />
+          <Button label="Back" variant="secondary" onPress={() => router.dismissTo('/(tabs)/driver')} />
         </View>
       </Screen>
     );

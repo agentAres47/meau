@@ -90,7 +90,9 @@ export default function CompleteProfile() {
 
   async function finish() {
     await refreshProfile(); // status flips to 'ready'
-    router.replace('/(tabs)/passenger');
+    // dismissTo, not replace: this screen is nested in the (onboarding) stack,
+    // exiting to a different top-level group (tabs) — see ride/rate's done().
+    router.dismissTo('/(tabs)/passenger');
   }
 
   async function pickPhoto() {

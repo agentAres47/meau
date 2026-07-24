@@ -45,7 +45,7 @@ export default function Waiting() {
     if ((s.status === 'cancelled' || s.status === 'expired') && !done.current) {
       done.current = true;
       Alert.alert('No ride found', 'No driver was available. Please try again.', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)/passenger') },
+        { text: 'OK', onPress: () => router.dismissTo('/(tabs)/passenger') },
       ]);
     }
   }, [rid]);
@@ -56,14 +56,15 @@ export default function Waiting() {
     return subscribeRequest(rid, refetch);
   }, [rid, refetch]);
 
-  // router.replace, not back() — this screen is commonly reached via a
-  // Redirect (from the passenger tab's active-request gate), which replaces
-  // history rather than pushing, so back() here can have nowhere to go.
+  // dismissTo, not back(): this screen is commonly reached via a Redirect
+  // (from the passenger tab's active-request gate), which replaces history
+  // rather than pushing, so back() here can have nowhere to go. dismissTo also
+  // unwinds the `ride` stack cleanly (plain replace left it resurfacing later).
   async function onCancel() {
     // Suppress the "No ride found" alert for our OWN cancel (both set 'cancelled').
     done.current = true;
     if (rid) await cancelRequest(rid);
-    router.replace('/(tabs)/passenger');
+    router.dismissTo('/(tabs)/passenger');
   }
 
   return (

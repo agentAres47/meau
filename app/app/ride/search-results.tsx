@@ -48,11 +48,12 @@ export default function SearchResults() {
   // Leaving without requesting any driver would otherwise strand the
   // ride_requests row in 'searching' forever — the passenger tab's active-
   // request gate would then redirect straight back into "Finding your
-  // ride..." with no way out. Cancel it first, then replace (not back()) so
-  // this is safe even if we got here via a Redirect that ate history.
+  // ride..." with no way out. Cancel it first, then dismissTo (not back()) so
+  // this is safe even if we got here via a Redirect that ate history, and
+  // cleanly unwinds the `ride` stack instead of leaving it to resurface.
   async function backToSearch() {
     if (requestId) await cancelRequest(requestId);
-    router.replace('/(tabs)/passenger');
+    router.dismissTo('/(tabs)/passenger');
   }
 
   return (

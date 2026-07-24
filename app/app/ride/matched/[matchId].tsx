@@ -129,10 +129,10 @@ export default function MatchedRide() {
     if (status.request_status === 'cancelled') {
       const who = status.my_role === 'driver' ? 'Passenger' : 'Driver';
       Alert.alert('Ride cancelled', `${who} cancelled the ride.`, [
-        { text: 'OK', onPress: () => router.replace(dest) },
+        { text: 'OK', onPress: () => router.dismissTo(dest) },
       ]);
     } else {
-      router.replace(dest);
+      router.dismissTo(dest);
     }
   }, [status]);
 
@@ -156,7 +156,7 @@ export default function MatchedRide() {
     setError(null);
     try {
       await cancelMatch(matchId);
-      router.replace(status.my_role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
+      router.dismissTo(status.my_role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
     } catch {
       setError('Could not cancel. Try again.');
       setBusy(false);
@@ -179,7 +179,7 @@ export default function MatchedRide() {
           label="Back"
           variant="secondary"
           className="mt-4"
-          onPress={() => router.replace('/(tabs)/passenger')}
+          onPress={() => router.dismissTo('/(tabs)/passenger')}
         />
       </Screen>
     );

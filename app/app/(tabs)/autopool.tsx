@@ -67,7 +67,7 @@ export default function AutoPool() {
       if (s.status === 'matched' && s.pool_group_id) {
         matchHaptic();
         const matchId = await getPoolMatchId(s.pool_group_id);
-        if (active && matchId) router.replace(`/match/${matchId}`);
+        if (active && matchId) router.dismissTo(`/match/${matchId}`);
         return;
       }
       setSession(s);
@@ -88,7 +88,7 @@ export default function AutoPool() {
       if (active && s?.status === 'matched' && s.pool_group_id) {
         matchHaptic();
         const matchId = await getPoolMatchId(s.pool_group_id);
-        if (active && matchId) router.replace(`/match/${matchId}`);
+        if (active && matchId) router.dismissTo(`/match/${matchId}`);
       }
     })();
 

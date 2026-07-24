@@ -149,7 +149,9 @@ export default function AdminDashboard() {
 
   async function onLogout() {
     await supabase.auth.signOut();
-    router.replace('/(onboarding)/welcome');
+    // dismissTo: (admin) is a nested stack, exiting to a different top-level
+    // group — see ride/rate's done() for why plain replace is unsafe here.
+    router.dismissTo('/(onboarding)/welcome');
   }
 
   async function onRefresh() {

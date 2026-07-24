@@ -120,7 +120,7 @@ export default function MatchChat() {
   useEffect(() => {
     if (!matchId || meta?.kind !== 'autopool') return;
     return subscribeMatchStatus(matchId, (status) => {
-      if (status === 'disbanded') router.replace('/(tabs)/autopool');
+      if (status === 'disbanded') router.dismissTo('/(tabs)/autopool');
     });
   }, [matchId, meta?.kind]);
 
@@ -173,7 +173,7 @@ export default function MatchChat() {
           try {
             await leavePool(matchId);
           } finally {
-            router.replace('/(tabs)/autopool');
+            router.dismissTo('/(tabs)/autopool');
           }
         },
       },

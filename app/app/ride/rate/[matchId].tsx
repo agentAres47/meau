@@ -27,7 +27,14 @@ export default function RateRide() {
   const [busy, setBusy] = useState(false);
 
   function done() {
-    router.replace('/(tabs)/passenger');
+    // dismissTo, not replace: this screen is nested inside the `ride` stack
+    // (ride/_layout.tsx), and plain replace() only swaps the current screen
+    // within that stack — it doesn't unwind the stack itself. That left the
+    // ride/matched screen resurfacing underneath, whose own completed_at
+    // effect immediately re-fires and routes back to THIS screen, creating
+    // the "stuck on rate, Skip does nothing" loop. dismissTo properly unwinds
+    // every nested screen back to the target tab.
+    router.dismissTo('/(tabs)/passenger');
   }
 
   async function submit() {
