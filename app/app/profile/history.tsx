@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '../../components/Screen';
-import { ChevronLeft, History as HistoryIcon, Star, XCircle } from 'lucide-react-native';
+import { ChevronLeft, History as HistoryIcon, XCircle } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
 import { Card } from '../../components/Card';
 import { Skeleton } from '../../components/Skeleton';
@@ -77,17 +77,12 @@ export default function RideHistory() {
                   <Text className="text-muted text-xs">{formatDepart(h.when_at)}</Text>
                 </View>
                 <View className="items-end gap-1">
-                  {h.completed ? (
-                    <View className="flex-row items-center gap-1">
-                      <Star color={colors.accent} size={14} fill={h.i_rated ? colors.accent : 'none'} />
-                      <Text className="text-muted text-[11px]">{h.i_rated ? 'Rated' : 'Not rated'}</Text>
-                    </View>
-                  ) : (
+                  {!h.completed ? (
                     <View className="flex-row items-center gap-1">
                       <XCircle color={colors.danger} size={14} />
                       <Text className="text-muted text-[11px]">Cancelled</Text>
                     </View>
-                  )}
+                  ) : null}
                   {fare != null ? (
                     <Text className="text-text text-xs font-medium tabular-nums">₹{fare}</Text>
                   ) : null}

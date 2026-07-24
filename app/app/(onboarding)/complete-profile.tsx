@@ -91,7 +91,8 @@ export default function CompleteProfile() {
   async function finish() {
     await refreshProfile(); // status flips to 'ready'
     // dismissTo, not replace: this screen is nested in the (onboarding) stack,
-    // exiting to a different top-level group (tabs) — see ride/rate's done().
+    // exiting to a different top-level group (tabs) — plain replace() only
+    // swaps the current screen within its own stack, leaving stale history.
     router.dismissTo('/(tabs)/passenger');
   }
 

@@ -39,27 +39,11 @@ export async function cancelMatch(matchId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// F8 — ride completion, ratings, history. Manual end only (ponytail: no
-// auto-complete timeout yet; add via expire_stale_rows if rides get stuck).
+// F8 — ride completion + history. Manual end only (ponytail: no auto-complete
+// timeout yet; add via expire_stale_rows if rides get stuck). Ratings were
+// removed — the rate screen's post-ride navigation was never reliable.
 export async function endRide(matchId: string): Promise<void> {
   const { error } = await supabase.rpc('end_ride', { p_match_id: matchId });
-  if (error) throw new Error(error.message);
-}
-
-export type Sentiment = 'smooth' | 'mostly' | 'not_smooth';
-
-export async function submitRating(params: {
-  matchId: string;
-  sentiment: Sentiment;
-  stars?: number | null;
-  note?: string | null;
-}): Promise<void> {
-  const { error } = await supabase.rpc('submit_rating', {
-    p_match_id: params.matchId,
-    p_sentiment: params.sentiment,
-    p_stars: params.stars ?? null,
-    p_note: params.note ?? null,
-  });
   if (error) throw new Error(error.message);
 }
 
@@ -75,7 +59,6 @@ export type HistoryEntry = {
   pool_size: number;
   when_at: string;
   completed: boolean;
-  i_rated: boolean;
 };
 
 export async function getRideHistory(): Promise<HistoryEntry[]> {
@@ -99,7 +82,7 @@ export async function getMatchCompletedAt(matchId: string): Promise<string | nul
 }
 
 // Realtime on a match row (fires on completed_at set) — used so the party who
-// didn't tap "End ride" gets prompted to rate live, no refresh needed.
+// didn't tap "End ride" leaves the ride view live, no refresh needed.
 export function subscribeMatch(matchId: string, onChange: () => void): () => void {
   const channel = supabase
     .channel(channelTopic(`match-${matchId}`))

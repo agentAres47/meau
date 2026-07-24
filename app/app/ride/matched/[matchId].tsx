@@ -18,6 +18,7 @@ import { formatDepart, formatEta } from '../../../lib/format';
 import { useReducedMotion } from '../../../lib/reducedMotion';
 import { useSession } from '../../../store/session';
 import { ensureNotificationPermission } from '../../../lib/notifications';
+import { matchHaptic } from '../../../lib/haptics';
 
 // Shared by both sides of a match so driver + passenger see the exact same
 // "we're on the same page" screen: each other's info, the route, a seat
@@ -109,15 +110,15 @@ export default function MatchedRide() {
     return subscribeMatch(matchId, load);
   }, [matchId, load]);
 
-  // F8: once completed, go straight to the feedback flow (PRODUCT_MEMORY:
-  // sentiment before stars). Guarded so it fires exactly once even if both the
-  // manual endRide() call and this realtime-driven reload land.
+  // F8: once completed, leave straight to the driver/passenger tab. Guarded so
+  // it fires exactly once even if both the manual endRide() call and this
+  // realtime-driven reload land. (Ratings were removed — no rate screen.)
   const ratedRef = useRef(false);
   useEffect(() => {
-    if (!status?.completed_at || !matchId || ratedRef.current) return;
+    if (!status || !status.completed_at || !matchId || ratedRef.current) return;
     ratedRef.current = true;
-    router.replace(`/ride/rate/${matchId}`);
-  }, [status?.completed_at, matchId]);
+    router.dismissTo(status.my_role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
+  }, [status, matchId]);
 
   // On the other side cancelling (BUG 3), tell this user explicitly instead of a
   // silent redirect, then leave. Guarded so it fires exactly once.
@@ -137,13 +138,14 @@ export default function MatchedRide() {
   }, [status]);
 
   async function onEndRide() {
-    if (!matchId) return;
+    if (!matchId || !status) return;
     setEndBusy(true);
     setError(null);
     try {
       await endRide(matchId);
+      matchHaptic();
       ratedRef.current = true; // we're already navigating; skip the realtime-driven duplicate
-      router.replace(`/ride/rate/${matchId}`);
+      router.dismissTo(status.my_role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
     } catch {
       setError('Could not end the ride. Try again.');
       setEndBusy(false);

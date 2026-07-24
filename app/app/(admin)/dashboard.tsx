@@ -150,7 +150,8 @@ export default function AdminDashboard() {
   async function onLogout() {
     await supabase.auth.signOut();
     // dismissTo: (admin) is a nested stack, exiting to a different top-level
-    // group — see ride/rate's done() for why plain replace is unsafe here.
+    // group — plain replace() only swaps the current screen within its own
+    // stack, leaving stale history to resurface later.
     router.dismissTo('/(onboarding)/welcome');
   }
 

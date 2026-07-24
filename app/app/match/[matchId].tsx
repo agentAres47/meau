@@ -128,6 +128,7 @@ export default function MatchChat() {
   // screen doesn't exist for autopool (which lands here directly), so "End
   // ride" lives in this header instead. Realtime + a plain select (no new RPC,
   // matches_participant_select already permits it) catch the OTHER poolers.
+  // (Ratings were removed — ending just leaves to the Auto Pool tab.)
   useEffect(() => {
     if (!matchId || meta?.kind !== 'autopool') return;
     return subscribeMatch(matchId, async () => {
@@ -135,7 +136,7 @@ export default function MatchChat() {
       const completedAt = await getMatchCompletedAt(matchId);
       if (completedAt) {
         ratedRef.current = true;
-        router.replace(`/ride/rate/${matchId}`);
+        router.dismissTo('/(tabs)/autopool');
       }
     });
   }, [matchId, meta?.kind]);
@@ -147,7 +148,7 @@ export default function MatchChat() {
       await endRide(matchId);
       matchHaptic();
       ratedRef.current = true;
-      router.replace(`/ride/rate/${matchId}`);
+      router.dismissTo('/(tabs)/autopool');
     } catch {
       setError('Could not end the ride. Try again.');
       setEndBusy(false);
