@@ -1,4 +1,5 @@
-import { ScrollView, View, Text, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView, View, Text, Pressable } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router } from 'expo-router';
 import { Screen } from '../../components/Screen';
 import { ChevronLeft } from 'lucide-react-native';
@@ -25,10 +26,7 @@ export default function BecomeDriver() {
         <Text className="text-text text-base font-semibold">Become a driver</Text>
       </View>
 
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerClassName="px-6 pt-4 pb-4" keyboardShouldPersistTaps="handled">
           <Text className="text-muted text-sm mb-6">
             Upload your driving licence and vehicle details. We review it before you can post rides.

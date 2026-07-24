@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Redirect, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Screen } from '../../components/Screen';
@@ -133,7 +134,7 @@ export default function CompleteProfile() {
   if (step === 2) {
     return (
       <Screen edges={['top', 'bottom']}>
-        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <ScrollView contentContainerClassName="px-6 pt-6 pb-4" keyboardShouldPersistTaps="handled">
             <Text className="text-text text-xl font-bold">Want to drive too?</Text>
             <Text className="text-muted text-sm mt-2 mb-6">
@@ -168,10 +169,7 @@ export default function CompleteProfile() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerClassName="px-6 pt-6 pb-4 gap-6" keyboardShouldPersistTaps="handled">
           <View>
             <Text className="text-text text-xl font-bold">Complete your profile</Text>

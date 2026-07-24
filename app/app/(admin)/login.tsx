@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { router } from 'expo-router';
 import { Screen } from '../../components/Screen';
 import { Button } from '../../components/Button';
@@ -46,10 +47,7 @@ export default function AdminLogin() {
 
   return (
     <Screen edges={['top', 'bottom']} className="px-6">
-      <KeyboardAvoidingView
-        className="flex-1 justify-center"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'center' }} behavior="padding">
         <View className="gap-6">
           <View>
             <Text className="text-text text-xl font-bold">Admin sign in</Text>
