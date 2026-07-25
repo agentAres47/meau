@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ElementRef } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { router, useFocusEffect, Redirect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '../../components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, { BottomSheetView, BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -49,6 +49,20 @@ export default function Passenger() {
     }, [loadActive])
   );
 
+  // dismissTo, not a declarative <Redirect>: Redirect performs a
+  // replace()-equivalent navigation, which doesn't unwind this (tabs)
+  // navigator when crossing into the nested `ride` stack — the tab dock
+  // stayed mounted underneath, this screen kept regaining focus, and
+  // useFocusEffect above kept re-firing loadActive() and re-redirecting: an
+  // actual infinite bounce between this tab and the waiting/matched screen.
+  useEffect(() => {
+    if (active?.status === 'searching') {
+      router.dismissTo(`/ride/waiting?rid=${active.id}`);
+    } else if (active?.status === 'matched' && matchId) {
+      router.dismissTo(`/ride/matched/${matchId}`);
+    }
+  }, [active, matchId]);
+
   if (active === undefined) {
     return (
       <Screen className="items-center justify-center" edges={['top']}>
@@ -57,9 +71,15 @@ export default function Passenger() {
     );
   }
 
-  // Mid-search → waiting screen (also gates re-requesting).
+  // Mid-search → waiting screen (also gates re-requesting). Navigation itself
+  // happens in the effect above; this is just what shows for the one frame
+  // before it takes effect.
   if (active?.status === 'searching') {
-    return <Redirect href={`/ride/waiting?rid=${active.id}`} />;
+    return (
+      <Screen className="items-center justify-center" edges={['top']}>
+        <ActivityIndicator color={colors.accent} />
+      </Screen>
+    );
   }
 
   // Matched → the shared matched-ride screen (same one the driver sees).
@@ -83,7 +103,12 @@ export default function Passenger() {
         </Screen>
       );
     }
-    return <Redirect href={`/ride/matched/${matchId}`} />;
+    // Navigation itself happens in the effect above.
+    return (
+      <Screen className="items-center justify-center" edges={['top']}>
+        <ActivityIndicator color={colors.accent} />
+      </Screen>
+    );
   }
 
   return <SearchForm />;
