@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, Keyboard } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Redirect, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -70,6 +70,18 @@ export default function CompleteProfile() {
   const signOut = useSession((s) => s.signOut);
 
   const [step, setStep] = useState<1 | 2>(1);
+  const step2ScrollRef = useRef<ScrollView>(null);
+
+  // Defensive: something (keyboard-controller's residual focus/keyboard
+  // metrics from the step-1 phone input, confirmed independent of whether the
+  // keyboard is actually open when Continue is tapped) lands this freshly
+  // mounted ScrollView scrolled partway down, hiding "Want to drive too?"
+  // above the fold. Force it back to the top right after mount.
+  useEffect(() => {
+    if (step !== 2) return;
+    const t = setTimeout(() => step2ScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+    return () => clearTimeout(t);
+  }, [step]);
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [role, setRole] = useState<Profile['role']>(profile?.role ?? 'student');
@@ -107,6 +119,11 @@ export default function CompleteProfile() {
   }
 
   async function onContinue() {
+    // Dismiss first: step 2 mounts a fresh screen tree, and if the phone
+    // input is still focused when it unmounts, Android shifts focus to the
+    // next input in the new tree (Make & model), reopening the keyboard and
+    // auto-scrolling step 2 past its own header.
+    Keyboard.dismiss();
     setError(null);
     if (!fullName.trim()) return setError('Your name is required.');
     if (!/^\d{10}$/.test(phone.trim())) return setError('Enter a valid 10-digit phone number.');
@@ -138,10 +155,15 @@ export default function CompleteProfile() {
     return (
       <Screen edges={['top', 'bottom']}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-          <ScrollView contentContainerClassName="px-6 pt-6 pb-4" keyboardShouldPersistTaps="handled">
+          <ScrollView
+            ref={step2ScrollRef}
+            contentContainerClassName="px-6 pt-6 pb-4"
+            keyboardShouldPersistTaps="handled"
+          >
             <Text className="text-text text-xl font-bold">Want to drive too?</Text>
             <Text className="text-muted text-sm mt-2 mb-6">
-              Upload your licence now, or skip and do this later from your profile.
+              Upload your licence now, or <Text className="text-accent font-semibold">skip</Text> and do
+              this later from your profile.
             </Text>
             <DriverApplicationForm
               submitLabel="Submit for review"
@@ -160,7 +182,7 @@ export default function CompleteProfile() {
                   accessibilityRole="button"
                   className="py-3 active:opacity-60"
                 >
-                  <Text className="text-muted text-sm text-center">Skip for now</Text>
+                  <Text className="text-text text-sm font-semibold text-center underline">Skip for now</Text>
                 </Pressable>
               }
             />

@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Image, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Image, RefreshControl, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { Trash2 } from 'lucide-react-native';
 import { Screen } from '../../components/Screen';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { colors } from '../../theme/tokens';
 import { supabase } from '../../lib/supabase';
 import {
   checkIsAdmin,
@@ -13,6 +15,7 @@ import {
   getLicenceSignedUrl,
   approveDriverApplication,
   rejectDriverApplication,
+  deleteProfile,
   type AdminStats,
   type PendingDriverApplication,
   type AdminProfile,
@@ -106,6 +109,7 @@ export default function AdminDashboard() {
   const [pending, setPending] = useState<PendingDriverApplication[]>([]);
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -145,6 +149,31 @@ export default function AdminDashboard() {
     if (approve) await approveDriverApplication(amizoneId);
     else await rejectDriverApplication(amizoneId, 'Rejected by admin');
     await load();
+  }
+
+  function onDelete(p: AdminProfile) {
+    Alert.alert(
+      'Delete account',
+      `Permanently delete ${p.full_name} (${p.amizone_id})? This removes their profile, rides, and messages. This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(p.id);
+            try {
+              await deleteProfile(p.id);
+              await load();
+            } catch {
+              Alert.alert('Could not delete', 'Something went wrong. Try again.');
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function onLogout() {
@@ -222,7 +251,7 @@ export default function AdminDashboard() {
           <Text className="text-text text-base font-semibold">Users ({profiles.length})</Text>
           <Card className="gap-3">
             {profiles.map((p) => (
-              <View key={p.id} className="flex-row items-center justify-between">
+              <View key={p.id} className="flex-row items-center justify-between gap-3">
                 <View className="flex-1 pr-3">
                   <Text className="text-text text-sm">{p.full_name}</Text>
                   <Text className="text-muted text-xs">
@@ -230,6 +259,18 @@ export default function AdminDashboard() {
                   </Text>
                 </View>
                 {p.is_driver_verified ? <Text className="text-success text-xs">driver</Text> : null}
+                {deletingId === p.id ? (
+                  <ActivityIndicator color={colors.danger} size="small" />
+                ) : (
+                  <Pressable
+                    onPress={() => onDelete(p)}
+                    accessibilityRole="button"
+                    disabled={deletingId !== null}
+                    className="p-1 active:opacity-60"
+                  >
+                    <Trash2 color={colors.danger} size={18} />
+                  </Pressable>
+                )}
               </View>
             ))}
           </Card>

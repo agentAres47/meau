@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '../../components/Screen';
 import { ChevronLeft, History as HistoryIcon, XCircle } from 'lucide-react-native';
 import { colors } from '../../theme/tokens';
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
@@ -24,16 +25,20 @@ function autopoolDisplay(h: HistoryEntry): { label: string; fare: number | null 
 // happens from the matched-ride screen right after a ride ends, not from here.
 export default function RideHistory() {
   const [items, setItems] = useState<HistoryEntry[] | null>(null);
+  const [error, setError] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      getRideHistory().then((h) => alive && setItems(h));
-      return () => {
-        alive = false;
-      };
-    }, [])
-  );
+  const load = useCallback(() => {
+    let alive = true;
+    setError(false);
+    getRideHistory()
+      .then((h) => alive && setItems(h))
+      .catch(() => alive && setError(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useFocusEffect(load);
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -48,7 +53,12 @@ export default function RideHistory() {
         <Text className="text-text text-base font-semibold">Ride history</Text>
       </View>
 
-      {items === null ? (
+      {error ? (
+        <View className="flex-1 items-center justify-center px-6 gap-4">
+          <Text className="text-text text-base text-center">Couldn't load your ride history.</Text>
+          <Button label="Retry" onPress={load} />
+        </View>
+      ) : items === null ? (
         <View className="px-6 pt-2 gap-3">
           <Skeleton height={84} radius={16} />
           <Skeleton height={84} radius={16} />

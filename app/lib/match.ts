@@ -62,7 +62,8 @@ export type HistoryEntry = {
 };
 
 export async function getRideHistory(): Promise<HistoryEntry[]> {
-  const { data } = await supabase.rpc('my_ride_history');
+  const { data, error } = await supabase.rpc('my_ride_history');
+  if (error) throw new Error(error.message);
   return (data as HistoryEntry[]) ?? [];
 }
 

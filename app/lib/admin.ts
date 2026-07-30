@@ -63,6 +63,11 @@ export async function getAdminProfiles(): Promise<AdminProfile[]> {
   return (data as AdminProfile[]) ?? [];
 }
 
+export async function deleteProfile(profileId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_profile', { p_profile_id: profileId });
+  if (error) throw new Error(error.message);
+}
+
 export type AdminStats = {
   total_users: number;
   onboarded_users: number;

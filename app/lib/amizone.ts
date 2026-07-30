@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 const BASE = process.env.EXPO_PUBLIC_AMIZONE_AUTH_URL;
 
 // fetch with a hard timeout so a bad network path fails fast instead of hanging.
@@ -48,6 +50,13 @@ export async function verifyWebview(params: {
     throw new Error("Couldn't read your Amizone ID. Try logging in again.");
   }
   if (res.status === 401) {
+    // The server rejected our Supabase token outright (its auth.users row is
+    // gone — e.g. the account was deleted or the DB was wiped since this
+    // device last signed in). ensureSession() would otherwise keep handing
+    // back this same dead cached session forever, so "Try again" could never
+    // actually work. Clear it now so the next ensureSession() mints a fresh
+    // anonymous session instead of looping on this one.
+    await supabase.auth.signOut();
     throw new Error('Your session expired. Please try again.');
   }
   throw new Error('Verification is unavailable right now. Try again in a moment.');
