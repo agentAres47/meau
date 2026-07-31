@@ -4,6 +4,7 @@ import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { rankMatches, type Candidate, type RequestGeo } from './match.js';
 import { startNotificationDrainer } from './notify.js';
+import { errDetail, loggingFetch } from './errors.js';
 
 const PORT = Number(process.env.PORT ?? 8081);
 const TIME_WINDOW_MIN = Number(process.env.TIME_WINDOW_MIN ?? 30);
@@ -16,6 +17,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
+  global: { fetch: loggingFetch('supabase') },
 });
 
 const app = express();
@@ -30,7 +32,12 @@ app.post('/match', async (req, res) => {
   if (!request_id) return res.status(400).json({ error: 'missing_request_id' });
 
   const { data: geoRows, error: geoErr } = await admin.rpc('request_geo', { p_request_id: request_id });
-  if (geoErr) return res.status(500).json({ error: 'request_lookup_failed' });
+  if (geoErr) {
+    // Log the real reason: the client only ever sees the flat error code, so an
+    // unlogged failure here is invisible from both ends.
+    console.error('/match request_geo failed:', errDetail(geoErr));
+    return res.status(500).json({ error: 'request_lookup_failed' });
+  }
   const reqGeo = (geoRows as RequestGeo[] | null)?.[0];
   if (!reqGeo) return res.status(404).json({ error: 'request_not_found' });
 
@@ -128,7 +135,7 @@ app.post('/accept', async (req, res) => {
 // function uses FOR UPDATE SKIP LOCKED + per-profile dedup (idempotent).
 setInterval(() => {
   admin.rpc('run_autopool_matching').then(({ error }) => {
-    if (error) console.error('run_autopool_matching failed:', error.message);
+    if (error) console.error('run_autopool_matching failed:', errDetail(error));
   });
 }, 5_000);
 

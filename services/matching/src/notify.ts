@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { errDetail } from './errors.js';
 
 // Phase 1 (F7) — drains notifications_outbox and delivers via the Expo Push API.
 // Runs in the matching service (already has the service-role client + is always
@@ -33,7 +34,7 @@ export function startNotificationDrainer(admin: SupabaseClient, intervalMs = 300
     try {
       await drainOnce(admin);
     } catch (e) {
-      console.error('notification drain failed:', (e as Error).message);
+      console.error('notification drain failed:', errDetail(e));
     } finally {
       draining = false;
     }
@@ -109,7 +110,7 @@ async function drainOnce(admin: SupabaseClient): Promise<void> {
       });
     } catch (e) {
       hardFailure = true;
-      console.error('expo push send failed:', (e as Error).message);
+      console.error('expo push send failed:', errDetail(e));
     }
   }
 
