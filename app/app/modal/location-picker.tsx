@@ -61,11 +61,11 @@ export default function LocationPicker() {
     }
   }
 
-  async function choose(placeId: string) {
+  async function choose(placeId: string, label: string) {
     setBusy(true);
     setError(null);
     try {
-      pick(await placeDetails(placeId));
+      pick(await placeDetails(placeId, label));
     } catch {
       setError("Couldn't get that location. Check your connection and try again.");
     } finally {
@@ -157,7 +157,7 @@ export default function LocationPicker() {
           contentContainerClassName="px-6 pt-2"
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => choose(item.placeId)}
+              onPress={() => choose(item.placeId, item.label)}
               accessibilityRole="button"
               className="flex-row items-center gap-3 py-3 border-b border-surface2 active:opacity-60"
             >

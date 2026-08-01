@@ -22,14 +22,20 @@ export async function placesAutocomplete(
   return (res.predictions ?? []).map((p: any) => ({ placeId: p.place_id, label: p.description }));
 }
 
-export async function placeDetails(placeId: string): Promise<Place | null> {
+// `label` is the autocomplete suggestion the user actually tapped. Prefer it:
+// formatted_address is the POSTAL address of the coordinates, so picking
+// "Amity University Mumbai" showed "Mumbai - Pune Expressway Bhatan, ..." —
+// same spot, but it silently replaced the user's choice with a string they
+// never saw, and a landmark name is what a driver can actually navigate by.
+// Details is still what we need for the coordinates.
+export async function placeDetails(placeId: string, label?: string): Promise<Place | null> {
   if (!KEY) return null;
   const url = `${BASE}/place/details/json?place_id=${placeId}&fields=geometry,name,formatted_address&key=${KEY}`;
   const res = await fetch(url).then((r) => r.json());
   const loc = res.result?.geometry?.location;
   if (!loc) return null;
   return {
-    label: res.result.formatted_address ?? res.result.name ?? 'Selected place',
+    label: label ?? res.result.name ?? res.result.formatted_address ?? 'Selected place',
     latitude: loc.lat,
     longitude: loc.lng,
   };

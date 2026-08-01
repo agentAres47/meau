@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Polyline, type LatLng } from 'react-native-maps';
 import { colors } from '../theme/tokens';
-import { DARK_MAP_STYLE } from '../lib/mapStyle';
+import { DARK_MAP_STYLE_PREVIEW } from '../lib/mapStyle';
 import { PickupMarker, DestinationMarker } from './MapMarkers';
 
 type Props = {
@@ -15,7 +15,7 @@ export function MapPreview({ region, path, markers, height = 160 }: Props) {
   return (
     <MapView
       provider={PROVIDER_GOOGLE}
-      customMapStyle={DARK_MAP_STYLE}
+      customMapStyle={DARK_MAP_STYLE_PREVIEW}
       style={[styles.map, { height }]}
       initialRegion={{
         latitudeDelta: 0.02,
