@@ -30,6 +30,11 @@ export const colors = {
   // ~95% black, ~4% glass, ~1% accent — achieved by glass covering a small
   // fraction of the screen, not by the glass itself being faint.
   glassTint: '#0D0D0DB3', // bg-black at ~70% — darkens/obscures what's behind it
+  // Tint for the REAL-blur path. glassTint's ~70% exists to stand in FOR blur
+  // on the faux path; layering that much black over an actual backdrop blur
+  // just buries it and you get a dark panel instead of glass. ~45% lets the
+  // blurred content read through while keeping text legible.
+  glassTintBlur: '#0D0D0D73',
   glassBorder: '#FFFFFF26', // ~15% white — thin hairline, not a visible box edge
   // Darker/more-opaque translucent fill for the always-floating-over-map dock
   // chrome (tab bar, search/post card, driver header, recenter button) — these
@@ -37,7 +42,12 @@ export const colors = {
   // bleed through unevenly (read as a "gradient"/dirty-window look). ~90%
   // opacity keeps that from happening while staying translucent enough (with
   // DarkGlass's sheen highlight) to still read as glass, not a flat panel.
-  dockGlassTint: '#1A1517E6', // surface2 at ~90%
+  // Dock chrome tint, layered OVER a real backdrop blur. Two changes from the
+  // old '#1A1517E6': neutral instead of magenta-tinted (surface2 is warm, and
+  // at 90% across the whole dock that cast was very visible), and less opaque —
+  // the blur is what hides the map now, so the fill no longer has to brute-force
+  // it. A 90% fill over blur is just a dark bar; this keeps it reading as glass.
+  dockGlassTint: '#18181ABF', // neutral, ~75%
 } as const;
 
 // Background gradient stops + stop positions (expo-linear-gradient, top →

@@ -29,14 +29,26 @@ const SHEEN_COLORS = ['#FFFFFF14', '#FFFFFF00'] as const;
 // cost. Layout (padding, gap, flex) comes from `className`; the glass shell
 // (radius/border/fill/shadow) is style-driven so it stays consistent
 // everywhere.
-export function Glass({ overMap = false, intensity = 40, radius = 24, style, className, children, ...rest }: Props) {
-  const useBlur = Platform.OS === 'ios' && !overMap;
+export function Glass({ overMap = false, intensity = 60, radius = 24, style, className, children, ...rest }: Props) {
+  // Real blur on BOTH platforms now, except over the map. Android previously
+  // fell back to the faux fill unconditionally, so every glass surface there
+  // was a flat translucent panel — the whole reason the app read as "not
+  // glassy" on Android while reference apps (which do blur Android too) didn't.
+  // expo-blur can do a genuine backdrop blur on Android via dimezisBlurView.
+  // `overMap` still opts out: that blur samples the view behind it every frame,
+  // which is exactly the cost we can't pay over a continuously-moving map.
+  const useBlur = !overMap;
 
   return (
     <View className={className} style={[styles.shell, { borderRadius: radius }, !useBlur && styles.faux, style]} {...rest}>
       {useBlur ? (
         <>
-          <BlurView intensity={intensity} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={intensity}
+            tint="dark"
+            experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
+            style={StyleSheet.absoluteFill}
+          />
           <View style={[StyleSheet.absoluteFill, styles.tint]} pointerEvents="none" />
         </>
       ) : null}
@@ -69,9 +81,10 @@ const styles = StyleSheet.create({
   faux: {
     backgroundColor: colors.glassTint,
   },
-  // iOS: thin wash over the BlurView so glass reads as premium frosted glass,
-  // not plain grey blur.
+  // Thin wash over the BlurView so glass reads as premium frosted glass, not
+  // plain grey blur. Deliberately lighter than the faux fill — see
+  // glassTintBlur in tokens.
   tint: {
-    backgroundColor: colors.glassTint,
+    backgroundColor: colors.glassTintBlur,
   },
 });

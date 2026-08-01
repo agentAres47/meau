@@ -1,9 +1,11 @@
-import { View, StyleSheet, type ViewProps } from 'react-native';
+import { Platform, View, StyleSheet, type ViewProps } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/tokens';
 
 type Props = ViewProps & {
   radius?: number;
+  intensity?: number;
   className?: string;
 };
 
@@ -19,7 +21,7 @@ type Props = ViewProps & {
 // all." See BRAND_SYSTEM.md §6.
 const SHEEN_COLORS = ['#FFFFFF14', '#FFFFFF00'] as const;
 
-export function DarkGlass({ radius = 24, style, className, children, ...rest }: Props) {
+export function DarkGlass({ radius = 24, intensity = 50, style, className, children, ...rest }: Props) {
   return (
     <View
       className={className}
@@ -29,7 +31,6 @@ export function DarkGlass({ radius = 24, style, className, children, ...rest }: 
           borderRadius: radius,
           borderWidth: 1,
           borderColor: colors.glassBorder,
-          backgroundColor: colors.dockGlassTint,
           shadowColor: '#000',
           shadowOpacity: 0.4,
           shadowRadius: 16,
@@ -40,6 +41,22 @@ export function DarkGlass({ radius = 24, style, className, children, ...rest }: 
       ]}
       {...rest}
     >
+      {/* The blur is the point: an opaque fill can only DARKEN the map, so the
+          brightest map detail (place labels, road casings) still punched
+          through as sharp smudges — the "dirty window" look. Blurring smears
+          that into a uniform wash, which is what makes the surface read as
+          clean glass rather than a translucent panel with junk behind it. */}
+      <BlurView
+        intensity={intensity}
+        tint="dark"
+        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <View
+        style={[StyleSheet.absoluteFill, { backgroundColor: colors.dockGlassTint }]}
+        pointerEvents="none"
+      />
       <LinearGradient
         colors={SHEEN_COLORS}
         style={StyleSheet.absoluteFill}
