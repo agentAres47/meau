@@ -35,7 +35,11 @@ export const colors = {
   // just buries it and you get a dark panel instead of glass. ~45% lets the
   // blurred content read through while keeping text legible.
   glassTintBlur: '#0D0D0D73',
-  glassBorder: '#FFFFFF26', // ~15% white — thin hairline, not a visible box edge
+  // ~24% white. Was 15%, which read as timid — on a dark surface the edge is
+  // what actually defines the glass, so it needs to be seen. Kept below ~30%
+  // deliberately: past that it stops reading as a lit edge and starts looking
+  // like a drawn outline around a box.
+  glassBorder: '#FFFFFF3D',
   // Darker/more-opaque translucent fill for the always-floating-over-map dock
   // chrome (tab bar, search/post card, driver header, recenter button) — these
   // sit over a MOVING map, so glassTint's ~70% opacity let raw map detail
@@ -47,7 +51,12 @@ export const colors = {
   // at 90% across the whole dock that cast was very visible), and less opaque —
   // the blur is what hides the map now, so the fill no longer has to brute-force
   // it. A 90% fill over blur is just a dark bar; this keeps it reading as glass.
-  dockGlassTint: '#18181ABF', // neutral, ~75%
+  // Over-map chrome. Neutral (the old #1A1517E6 was surface2, magenta-tinted,
+  // and that cast was very visible at this coverage). ~82%: on Android there is
+  // no real blur over the map (see DarkGlass), so opacity is the ONLY thing
+  // keeping sharp map detail from punching through. Lower and it reads as a
+  // dirty window; much higher and it stops being glass at all.
+  dockGlassTint: '#18181AD1',
 } as const;
 
 // Background gradient stops + stop positions (expo-linear-gradient, top →

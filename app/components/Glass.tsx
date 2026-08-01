@@ -21,7 +21,8 @@ type Props = ViewProps & {
 // reflections": a barely-there white-to-transparent wash across the top third
 // of the surface. Costs nothing (one small gradient), works identically on
 // both platforms regardless of which fill path (blur vs faux) is active.
-const SHEEN_COLORS = ['#FFFFFF14', '#FFFFFF00'] as const;
+const SHEEN_COLORS = ['#FFFFFF0D', '#FFFFFF00'] as const;
+const SHEEN_LOCATIONS = [0, 0.28] as const;
 
 // Adaptive glassmorphism surface. iOS → real expo-blur BlurView with a
 // near-colorless dark tint; Android (and any overMap usage) → translucent
@@ -56,7 +57,7 @@ export function Glass({ overMap = false, intensity = 60, radius = 24, style, cla
         colors={SHEEN_COLORS}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
-        locations={[0, 0.5]}
+        locations={SHEEN_LOCATIONS}
       />
       {children}
     </View>
@@ -68,12 +69,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.glassBorder,
-    // Soft float — subtle on dark, no harsh drop shadow.
+    // Soft float — subtle on dark, no harsh drop shadow. Kept light so the
+    // hairline border stays the thing defining the edge.
     shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   // Android / overMap: translucent dark fill stands in for the blur — this
   // is what actually darkens/obscures the map (or whatever's behind), since

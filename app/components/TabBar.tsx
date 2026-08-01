@@ -39,7 +39,9 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
       {/* Dark-glass dock (macOS-style but translucent, not flat) — a dark,
           mostly-opaque tint that still carries the sheen highlight, so it
           floats above the map without the map showing through unevenly. */}
-      <DarkGlass className="flex-row items-center px-2 py-1.5" radius={28}>
+      {/* radius 999 clamps to half the height = a true pill, so the ends are
+          exact semicircles. A fixed 28 left the sides visibly straight. */}
+      <DarkGlass className="flex-row items-center px-2 py-1.5" radius={999}>
         {state.routes.map((route, i) => {
           const meta = META[route.name];
           if (!meta) return null;
