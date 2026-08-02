@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { logDbError } from '../lib/dbError';
 import { unregisterPushToken } from '../lib/notifications';
 
 export type Profile = {
@@ -30,13 +31,24 @@ function deriveStatus(session: Session | null, profile: Profile | null): Status 
   return 'ready';
 }
 
-async function fetchProfile(authUserId: string): Promise<Profile | null> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('auth_user_id', authUserId)
-    .maybeSingle();
-  return (data as Profile) ?? null;
+// `ok: false` means "we could not find out", which is NOT the same as "this
+// user has no profile" — and the difference matters a lot here. deriveStatus
+// maps a missing profile to 'onboarding', so swallowing an error used to bounce
+// a fully onboarded user to the welcome screen on nothing worse than a network
+// blip. Since the Amizone WebView signs out on mount, that then forced a real
+// re-login. Retry briefly first: this failure is almost always transient.
+async function fetchProfile(authUserId: string): Promise<{ profile: Profile | null; ok: boolean }> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    if (!error) return { profile: (data as Profile) ?? null, ok: true };
+    logDbError(`fetchProfile attempt ${attempt + 1}`, error);
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+  }
+  return { profile: null, ok: false };
 }
 
 type SessionState = {
@@ -55,17 +67,31 @@ export const useSession = create<SessionState>((set, get) => ({
   profile: null,
   status: 'loading',
 
+  // On a failed lookup, keep whatever profile we already had rather than
+  // downgrading to 'onboarding' — see fetchProfile. With no cached profile
+  // (cold start) there is nothing better to do than fall through, but the
+  // retries inside fetchProfile make that path rare.
   hydrate: async () => {
     const { data } = await supabase.auth.getSession();
     const session = data.session;
-    const profile = session ? await fetchProfile(session.user.id) : null;
+    if (!session) {
+      set({ session: null, profile: null, status: deriveStatus(null, null) });
+      return;
+    }
+    const res = await fetchProfile(session.user.id);
+    const profile = res.ok ? res.profile : get().profile;
     set({ session, profile, status: deriveStatus(session, profile) });
   },
 
   // Keep the store in sync with Supabase auth changes (token refresh, sign-out).
   subscribe: () => {
     const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const profile = session ? await fetchProfile(session.user.id) : null;
+      if (!session) {
+        set({ session: null, profile: null, status: deriveStatus(null, null) });
+        return;
+      }
+      const res = await fetchProfile(session.user.id);
+      const profile = res.ok ? res.profile : get().profile;
       set({ session, profile, status: deriveStatus(session, profile) });
     });
     return () => data.subscription.unsubscribe();
@@ -73,7 +99,12 @@ export const useSession = create<SessionState>((set, get) => ({
 
   refreshProfile: async () => {
     const { session } = get();
-    const profile = session ? await fetchProfile(session.user.id) : null;
+    if (!session) {
+      set({ profile: null, status: deriveStatus(null, null) });
+      return;
+    }
+    const res = await fetchProfile(session.user.id);
+    const profile = res.ok ? res.profile : get().profile;
     set({ profile, status: deriveStatus(session, profile) });
   },
 

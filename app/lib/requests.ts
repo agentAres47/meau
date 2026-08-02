@@ -1,4 +1,5 @@
 import { supabase, channelTopic } from './supabase';
+import { logDbError } from './dbError';
 import { callMatching } from './passenger';
 
 export type Incoming = {
@@ -13,7 +14,8 @@ export type Incoming = {
 };
 
 export async function getIncoming(driverId: string): Promise<Incoming[]> {
-  const { data } = await supabase.rpc('driver_incoming', { p_driver_id: driverId });
+  const { data, error } = await supabase.rpc('driver_incoming', { p_driver_id: driverId });
+  logDbError('driver_incoming', error);
   return (data as Incoming[]) ?? [];
 }
 
@@ -72,7 +74,8 @@ export type IncomingDetail = {
 };
 
 export async function getIncomingDetail(requestId: string): Promise<IncomingDetail | null> {
-  const { data } = await supabase.rpc('incoming_request_detail', { p_request_id: requestId });
+  const { data, error } = await supabase.rpc('incoming_request_detail', { p_request_id: requestId });
+  logDbError('incoming_request_detail', error);
   return (data?.[0] as IncomingDetail) ?? null;
 }
 
@@ -104,6 +107,7 @@ export type MatchedPassenger = {
 };
 
 export async function getMatchedPassengers(tokenId: string): Promise<MatchedPassenger[]> {
-  const { data } = await supabase.rpc('driver_matched_passengers', { p_token_id: tokenId });
+  const { data, error } = await supabase.rpc('driver_matched_passengers', { p_token_id: tokenId });
+  logDbError('driver_matched_passengers', error);
   return (data as MatchedPassenger[]) ?? [];
 }

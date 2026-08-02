@@ -1,4 +1,5 @@
 import { supabase, channelTopic } from './supabase';
+import { logDbError } from './dbError';
 import type { Place } from './maps';
 
 const MATCHING = process.env.EXPO_PUBLIC_MATCHING_SERVICE_URL;
@@ -84,11 +85,12 @@ export type RequestState = {
 };
 
 export async function getRequestState(requestId: string): Promise<RequestState | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ride_requests')
     .select('status, matched_driver_id, matched_token_id')
     .eq('id', requestId)
     .maybeSingle();
+  logDbError('getRequestState', error);
   return (data as RequestState) ?? null;
 }
 
@@ -108,11 +110,12 @@ export function subscribeRequest(requestId: string, onChange: () => void): () =>
 }
 
 export async function getMatchId(requestId: string): Promise<string | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('matches')
     .select('id')
     .eq('ride_request_id', requestId)
     .maybeSingle();
+  logDbError('getMatchId', error);
   return (data?.id as string) ?? null;
 }
 
@@ -128,7 +131,7 @@ export type ActiveRequest = {
 
 // The passenger's current live request, if any (used to gate re-requesting).
 export async function getActiveRequest(passengerId: string): Promise<ActiveRequest | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ride_requests')
     .select('id, status, matched_driver_id')
     .eq('passenger_id', passengerId)
@@ -136,5 +139,6 @@ export async function getActiveRequest(passengerId: string): Promise<ActiveReque
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  logDbError('getActiveRequest', error);
   return (data as ActiveRequest) ?? null;
 }

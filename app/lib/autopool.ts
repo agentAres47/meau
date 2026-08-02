@@ -1,4 +1,5 @@
 import { supabase, channelTopic } from './supabase';
+import { logDbError } from './dbError';
 import { formatDepart } from './format';
 
 export type RouteCode = 'AMITY_STATION' | 'STATION_AMITY' | 'AMITY_IB' | 'IB_AMITY';
@@ -56,7 +57,7 @@ export async function createPoolSession(params: {
 }
 
 export async function getActivePoolSession(profileId: string): Promise<PoolSession | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('auto_pool_sessions')
     .select('id, route_code, mode, slot_time, status, pool_group_id')
     .eq('profile_id', profileId)
@@ -64,6 +65,7 @@ export async function getActivePoolSession(profileId: string): Promise<PoolSessi
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  logDbError('getActivePoolSession', error);
   return (data as PoolSession) ?? null;
 }
 
@@ -112,11 +114,12 @@ export function subscribeMatchStatus(matchId: string, onChange: (status: string)
 }
 
 export async function getPoolMatchId(poolGroupId: string): Promise<string | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('matches')
     .select('id')
     .eq('pool_group_id', poolGroupId)
     .maybeSingle();
+  logDbError('getPoolMatchId', error);
   return (data?.id as string) ?? null;
 }
 

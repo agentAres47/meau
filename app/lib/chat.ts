@@ -1,4 +1,5 @@
 import { supabase, channelTopic } from './supabase';
+import { logDbError } from './dbError';
 import { formatDepart } from './format';
 
 export type ChatMeta = {
@@ -22,7 +23,8 @@ export type Message = {
 };
 
 export async function getChatMeta(matchId: string): Promise<ChatMeta | null> {
-  const { data } = await supabase.rpc('match_chat_meta', { p_match_id: matchId });
+  const { data, error } = await supabase.rpc('match_chat_meta', { p_match_id: matchId });
+  logDbError('match_chat_meta', error);
   return (data?.[0] as ChatMeta) ?? null;
 }
 
@@ -36,11 +38,12 @@ export function matchSummary(meta: ChatMeta): string {
 }
 
 export async function getMessages(matchId: string): Promise<Message[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('messages')
     .select('id, sender_id, body, kind, created_at')
     .eq('match_id', matchId)
     .order('created_at', { ascending: true });
+  logDbError('getMessages', error);
   return (data as Message[]) ?? [];
 }
 

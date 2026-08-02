@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logDbError } from './dbError';
 import type { Place } from './maps';
 
 export type RideToken = {
@@ -28,8 +29,11 @@ export async function getMyVehicle(profileId: string): Promise<Vehicle | null> {
   return (data as Vehicle) ?? null;
 }
 
+// Both the cold-start resume (lib/resume) and the driver tab-lock key off this,
+// so a silent failure here quietly reopens the bug where a driver with a live
+// ride relaunched onto Passenger with the other tabs unlocked.
 export async function getMyActiveToken(profileId: string): Promise<RideToken | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ride_tokens')
     .select('id, origin_label, dest_label, route_polyline, depart_at, seats_total, seats_left, price_per_seat, status')
     .eq('driver_id', profileId)
@@ -37,6 +41,7 @@ export async function getMyActiveToken(profileId: string): Promise<RideToken | n
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  logDbError('getMyActiveToken', error);
   return (data as RideToken) ?? null;
 }
 

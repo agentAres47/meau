@@ -1,4 +1,5 @@
 import { supabase, channelTopic } from './supabase';
+import { logDbError } from './dbError';
 
 export type MatchStatus = {
   kind: 'ride' | 'autopool';
@@ -28,7 +29,8 @@ export type MatchStatus = {
 };
 
 export async function getMatchStatus(matchId: string): Promise<MatchStatus | null> {
-  const { data } = await supabase.rpc('match_status', { p_match_id: matchId });
+  const { data, error } = await supabase.rpc('match_status', { p_match_id: matchId });
+  logDbError('match_status', error);
   return (data?.[0] as MatchStatus) ?? null;
 }
 
@@ -70,7 +72,8 @@ export async function getRideHistory(): Promise<HistoryEntry[]> {
 // #13 — the passenger's offered price is the agreed fare. Readable by either
 // participant via a security-definer fn (see migration 0022).
 export async function getMatchOfferedPrice(matchId: string): Promise<number | null> {
-  const { data } = await supabase.rpc('match_offered_price', { p_match_id: matchId });
+  const { data, error } = await supabase.rpc('match_offered_price', { p_match_id: matchId });
+  logDbError('match_offered_price', error);
   return (data as number | null) ?? null;
 }
 
