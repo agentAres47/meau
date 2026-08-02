@@ -10,6 +10,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { colors } from '../theme/tokens';
 import { motion } from '../theme/tokens';
 import { useSession } from '../store/session';
+import { useDriverLive } from '../store/driverLive';
+import { getMyActiveToken } from '../lib/rides';
 import {
   ensureNotificationPermission,
   routeFromData,
@@ -73,6 +75,30 @@ export default function RootLayout() {
     hydrate();
     return subscribe();
   }, [hydrate, subscribe]);
+
+  // Arm the driver tab-lock at BOOT, not just when the Driver tab happens to
+  // mount. store/driverLive is in-memory and starts false every launch, and
+  // only driver.tsx ever set it — so after killing the app with a ride live,
+  // the lock was down and Passenger/Auto Pool were freely tappable, letting a
+  // driver wander off (and toward self-matching) while their ride was still
+  // published. driver.tsx still owns it once mounted; this just makes the
+  // cold-start state honest.
+  const setDriverLive = useDriverLive((s) => s.setLive);
+  useEffect(() => {
+    if (status !== 'ready' || !profileId) {
+      setDriverLive(false);
+      return;
+    }
+    let alive = true;
+    getMyActiveToken(profileId)
+      .then((token) => {
+        if (alive) setDriverLive(!!token);
+      })
+      .catch(() => {}); // leave it unlocked rather than trapping the user on a guess
+    return () => {
+      alive = false;
+    };
+  }, [status, profileId, setDriverLive]);
 
   // #4: ask for notification permission as soon as a verified profile exists
   // (i.e. right after first login), not only at a later contextual moment — one
