@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Delete your account — MeAau</title>
+  <meta name="description" content="How to delete your MeAau account and data." />
+  <meta name="theme-color" content="#050308" />
+  <link rel="icon" href="logo.png" />
+  <style>
+    :root{--canvas:#070510;--ink:#EDE9F4;--ink-dim:#A79FB8;--ink-faint:#6E6580;
+      --violet:#A78BFA;--pink:#F7A6C1;--hair:rgba(255,255,255,.10);
+      --body:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--body);line-height:1.7;-webkit-font-smoothing:antialiased;}
+    .wrap{max-width:720px;margin:0 auto;padding:56px 22px 96px;}
+    a{color:var(--violet);text-decoration:none;} a:hover{color:var(--pink);}
+    .home{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-dim);margin-bottom:40px;}
+    .home img{width:22px;height:22px;border-radius:6px;}
+    h1{font-size:clamp(28px,6vw,40px);line-height:1.1;letter-spacing:-.02em;margin:0 0 8px;}
+    .updated{color:var(--ink-faint);font-size:13px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:40px;}
+    h2{font-size:19px;letter-spacing:-.01em;margin:38px 0 10px;color:#fff;}
+    p,li{color:var(--ink-dim);font-size:15.5px;} ul,ol{padding-left:20px;} li{margin:6px 0;}
+    strong{color:var(--ink);font-weight:600;} .lead{color:var(--ink);font-size:16.5px;}
+    .card{background:rgba(255,255,255,.03);border:1px solid var(--hair);border-radius:16px;padding:20px 22px;margin:24px 0;}
+    hr{border:0;border-top:1px solid var(--hair);margin:44px 0;} footer{color:var(--ink-faint);font-size:13px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="home" href="index.html"><img src="logo.png" alt="" />Back to MeAau</a>
+    <h1>Delete your account</h1>
+    <p class="updated">Last updated 23 July 2026</p>
+
+    <p class="lead">You can delete your MeAau account and personal data at any time. Here's how, and what happens.</p>
+
+    <h2>How to request deletion</h2>
+    <div class="card">
+      <p style="margin:0"><strong>In the app:</strong> open <strong>Profile → Delete account</strong> and confirm.</p>
+    </div>
+    <div class="card">
+      <p style="margin:0"><strong>By email:</strong> write to <a href="mailto:meaau@meaau.in?subject=Delete%20my%20account">meaau@meaau.in</a> from your registered email address with the subject "Delete my account". We may confirm your identity before proceeding.</p>
+    </div>
+
+    <h2>What gets deleted</h2>
+    <ul>
+      <li>Your profile and Amizone-verified details (name, email, department, photo).</li>
+      <li>Your ride history, requests, matches, and ratings.</li>
+      <li>Driver details, including your vehicle info and licence image, if any.</li>
+      <li>Your push-notification token and device data.</li>
+    </ul>
+    <p>(As a reminder, we never stored your Amizone password in the first place.)</p>
+
+    <h2>Timeline</h2>
+    <p>Deletion is processed within <strong>30 days</strong> of your request. A small amount of information may be kept longer only where the law requires it (for example, records needed to resolve a dispute or meet a legal obligation).</p>
+
+    <h2>This is permanent</h2>
+    <p>Once deleted, your account and data cannot be recovered. If you want to use MeAau again later, you'll need to sign up and verify through Amizone afresh.</p>
+
+    <hr />
+    <footer>© <span id="yr">2026</span> MeAau · <a href="mailto:meaau@meaau.in">meaau@meaau.in</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></footer>
+  </div>
+  <script>document.getElementById('yr').textContent=new Date().getFullYear();</script>
+</body>
+</html>

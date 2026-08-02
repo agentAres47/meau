@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Avinash Vanamala — Software Developer, AI &amp; ML</title>
+<meta name="description" content="Software developer building production systems — a campus ride-sharing platform, ML services, and document-automation pipelines. B.Tech CSE at Amity University Mumbai." />
+<meta name="theme-color" content="#050308" />
+
+<meta property="og:type" content="profile" />
+<meta property="og:site_name" content="Avinash Vanamala" />
+<meta property="og:title" content="Avinash Vanamala — Software Developer, AI &amp; ML" />
+<meta property="og:description" content="Building production systems end to end: React Native, Node/TypeScript, PostgreSQL, and applied ML." />
+<meta property="og:url" content="https://www.meaau.in/me.html" />
+<meta property="og:image" content="https://www.meaau.in/logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Avinash Vanamala — Software Developer, AI &amp; ML" />
+<meta name="twitter:description" content="Building production systems end to end: React Native, Node/TypeScript, PostgreSQL, and applied ML." />
+<meta name="twitter:image" content="https://www.meaau.in/logo.png" />
+
+<link rel="icon" href="logo.png" />
+<link rel="apple-touch-icon" href="logo.png" />
+
+<style>
+/* ── Tokens ───────────────────────────────────────────────────────────────
+   Same palette as the MeAau landing page so the two read as one property. */
+:root{
+  --canvas:#050308; --ink:#EDE9F4; --ink-dim:#A79FB8; --ink-faint:#6E6580;
+  --violet:#8B5CF6; --violet-soft:#A78BFA; --magenta:#EC4899; --pink:#F7A6C1;
+  --hair:rgba(255,255,255,.09); --hair-strong:rgba(255,255,255,.16);
+  --glass:rgba(255,255,255,.035);
+  --wm:'SF Pro Rounded','Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --maxw:1080px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--canvas); color:var(--ink); font-family:var(--body);
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+
+/* ── Fixed atmosphere ─────────────────────────────────────────────────── */
+#bg{position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:radial-gradient(140% 100% at 50% -10%, #0B0712 0%, #050308 55%, #030106 100%);}
+#aurora{position:fixed; inset:0; z-index:0; width:100%; height:100%; pointer-events:none;}
+#spot{position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:radial-gradient(420px 420px at var(--mx,50%) var(--my,30%),
+    rgba(167,139,250,.12), rgba(236,72,153,.05) 42%, transparent 72%);}
+#grain{position:fixed; inset:-50%; z-index:2; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+#vig{position:fixed; inset:0; z-index:2; pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 40%, transparent 58%, rgba(0,0,0,.5) 100%);}
+
+main,header,footer{position:relative; z-index:3}
+
+/* ── Nav ──────────────────────────────────────────────────────────────── */
+.nav{position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:20;
+  display:flex; align-items:center; gap:2px; padding:5px;
+  border-radius:100px; background:rgba(10,6,16,.55); border:1px solid var(--hair);
+  backdrop-filter:blur(16px) saturate(1.3); -webkit-backdrop-filter:blur(16px) saturate(1.3);
+  box-shadow:0 18px 44px -22px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.07);
+  max-width:calc(100vw - 24px);}
+.nav a{padding:8px 15px; border-radius:100px; font-size:13.5px; font-weight:600; letter-spacing:.01em;
+  color:var(--ink-dim); text-decoration:none; white-space:nowrap; transition:color .2s ease, background .2s ease;}
+.nav a:hover,.nav a:focus-visible{color:var(--ink); background:rgba(255,255,255,.06)}
+.nav a.home{color:var(--pink)}
+@media (max-width:560px){ .nav{gap:0; padding:4px} .nav a{padding:7px 10px; font-size:12.5px} }
+
+/* ── Shell ────────────────────────────────────────────────────────────── */
+.wrap{width:min(var(--maxw),90vw); margin:0 auto}
+section{padding:clamp(64px,10vw,120px) 0; scroll-margin-top:80px}
+
+.eyebrow{display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:100px;
+  background:var(--glass); border:1px solid var(--hair);
+  font-size:11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim); font-weight:700;}
+.eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--pink);
+  box-shadow:0 0 10px 1px var(--pink), 0 0 22px 3px rgba(247,166,193,.55); animation:pulse 2.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+
+h2{font-family:var(--wm); font-weight:700; letter-spacing:-.02em; margin:18px 0 10px;
+  font-size:clamp(26px,4.6vw,40px);}
+.grad{background:linear-gradient(100deg,var(--violet-soft),var(--pink));
+  -webkit-background-clip:text; background-clip:text; color:transparent;}
+.sub{margin:0; color:var(--ink-dim); font-size:clamp(14.5px,2.2vw,16.5px); line-height:1.7; max-width:60ch; text-wrap:balance}
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+.hero{min-height:100svh; display:flex; align-items:center; padding-top:96px; padding-bottom:64px}
+.hero-grid{display:grid; grid-template-columns:1.25fr .75fr; gap:clamp(28px,5vw,64px); align-items:center}
+@media (max-width:860px){ .hero-grid{grid-template-columns:1fr; gap:40px} }
+
+.name{font-family:var(--wm); font-weight:800; letter-spacing:-.035em; line-height:.92; margin:20px 0 0;
+  font-size:clamp(46px,10.5vw,104px);}
+.name .l2{display:block; background:linear-gradient(100deg,var(--violet-soft) 10%,var(--magenta) 60%,var(--pink));
+  -webkit-background-clip:text; background-clip:text; color:transparent;}
+.role{margin:18px 0 0; font-size:clamp(15px,2.6vw,19px); color:var(--ink-dim); line-height:1.65; max-width:46ch}
+.role b{color:var(--ink); font-weight:600}
+
+.cta-row{display:flex; flex-wrap:wrap; gap:10px; margin-top:30px}
+.btn{display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:100px;
+  font-family:var(--wm); font-weight:700; font-size:14px; text-decoration:none; cursor:pointer;
+  border:1px solid var(--hair-strong); color:var(--ink); background:var(--glass);
+  transition:transform .18s cubic-bezier(.16,1,.3,1), border-color .2s ease, background .2s ease;}
+.btn:hover{transform:translateY(-2px); border-color:rgba(255,255,255,.3); background:rgba(255,255,255,.07)}
+.btn.primary{color:#0A0410; border-color:transparent;
+  background:linear-gradient(120deg,var(--violet-soft),var(--violet) 45%,var(--magenta));
+  box-shadow:0 10px 30px -10px rgba(236,72,153,.65), inset 0 0 0 1px rgba(255,255,255,.14);}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn svg{width:15px; height:15px; flex:none}
+
+/* Stat plate — the 3D object of the hero. */
+.plate-stage{perspective:1200px}
+.plate{transform-style:preserve-3d; will-change:transform;
+  border-radius:26px; padding:26px; border:1px solid var(--hair-strong);
+  background:linear-gradient(160deg, rgba(255,255,255,.075), rgba(255,255,255,.02) 55%);
+  backdrop-filter:blur(18px) saturate(1.25); -webkit-backdrop-filter:blur(18px) saturate(1.25);
+  box-shadow:0 40px 90px -40px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.12);
+  transition:transform .5s cubic-bezier(.16,1,.3,1);}
+.plate .shine{position:absolute; inset:0; border-radius:26px; pointer-events:none; opacity:0;
+  background:radial-gradient(240px 240px at var(--px,50%) var(--py,50%), rgba(255,255,255,.14), transparent 65%);
+  transition:opacity .3s ease;}
+.plate-stage:hover .shine{opacity:1}
+.plate-inner{position:relative}
+.stat{display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+  padding:13px 0; border-bottom:1px solid var(--hair);}
+.stat:last-child{border-bottom:0; padding-bottom:0}
+.stat:first-child{padding-top:0}
+.stat dt{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); font-weight:700; margin:0}
+.stat dd{margin:0; font-family:var(--wm); font-weight:700; font-size:clamp(15px,2.2vw,17px); text-align:right}
+.stat dd small{display:block; font-family:var(--body); font-weight:400; font-size:12.5px; color:var(--ink-faint); margin-top:3px}
+
+/* ── Reveal ───────────────────────────────────────────────────────────────
+   Scoped to .js on purpose. The hidden state is applied ONLY once JavaScript
+   has confirmed it is running, so a blocked/failed script leaves a fully
+   readable page instead of a blank one — the worst possible outcome for a CV. */
+.js .rise{opacity:0; transform:translateY(22px); filter:blur(7px)}
+.js .rise.in{opacity:1; transform:none; filter:none;
+  transition:opacity .85s cubic-bezier(.16,1,.3,1), transform .95s cubic-bezier(.16,1,.3,1), filter .8s ease}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.card-stage{perspective:1100px}
+.card{position:relative; transform-style:preserve-3d; will-change:transform;
+  border-radius:22px; padding:clamp(20px,3vw,30px); border:1px solid var(--hair);
+  background:linear-gradient(165deg, rgba(255,255,255,.055), rgba(255,255,255,.014) 60%);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 28px 64px -34px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.07);
+  transition:transform .5s cubic-bezier(.16,1,.3,1), border-color .3s ease;}
+.card-stage:hover .card{border-color:var(--hair-strong)}
+.card .shine{position:absolute; inset:0; border-radius:22px; pointer-events:none; opacity:0;
+  background:radial-gradient(300px 300px at var(--px,50%) var(--py,50%), rgba(167,139,250,.16), transparent 62%);
+  transition:opacity .3s ease;}
+.card-stage:hover .shine{opacity:1}
+.card-body{position:relative}
+
+.grid{display:grid; gap:18px}
+.grid.two{grid-template-columns:repeat(2,1fr)}
+.grid.three{grid-template-columns:repeat(3,1fr)}
+@media (max-width:860px){ .grid.two,.grid.three{grid-template-columns:1fr} }
+
+/* Project */
+.proj-head{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap}
+.proj-title{font-family:var(--wm); font-weight:800; letter-spacing:-.02em; margin:0;
+  font-size:clamp(19px,2.9vw,25px)}
+.live{display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:100px;
+  font-size:11.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; text-decoration:none;
+  color:var(--pink); border:1px solid rgba(247,166,193,.28); background:rgba(247,166,193,.07); white-space:nowrap}
+.live:hover{background:rgba(247,166,193,.14)}
+.stack{display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 0}
+.chip{font-size:11.5px; font-weight:600; letter-spacing:.03em; color:var(--ink-dim);
+  padding:5px 11px; border-radius:100px; background:rgba(255,255,255,.045); border:1px solid var(--hair)}
+ul.points{margin:16px 0 0; padding:0; list-style:none; display:grid; gap:11px}
+ul.points li{position:relative; padding-left:20px; color:var(--ink-dim); font-size:14.5px; line-height:1.65}
+ul.points li::before{content:''; position:absolute; left:2px; top:9px; width:6px; height:6px; border-radius:50%;
+  background:linear-gradient(120deg,var(--violet-soft),var(--magenta))}
+ul.points li b{color:var(--ink); font-weight:600}
+
+/* Experience */
+.role-head{display:flex; align-items:baseline; justify-content:space-between; gap:14px; flex-wrap:wrap}
+.role-title{font-family:var(--wm); font-weight:700; font-size:clamp(17px,2.5vw,20px); margin:0}
+.role-title span{color:var(--ink-dim); font-weight:500}
+.when{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); font-weight:700; white-space:nowrap}
+
+/* Skills */
+.skill-row{padding:16px 0; border-bottom:1px solid var(--hair); display:grid;
+  grid-template-columns:150px 1fr; gap:18px; align-items:start}
+.skill-row:last-child{border-bottom:0}
+.skill-row h3{margin:0; font-size:12px; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:700; padding-top:5px}
+@media (max-width:640px){ .skill-row{grid-template-columns:1fr; gap:9px} .skill-row h3{padding-top:0} }
+
+/* Education / awards */
+.mini{display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+  padding:14px 0; border-bottom:1px solid var(--hair)}
+.mini:last-child{border-bottom:0}
+.mini p{margin:0; font-size:14.5px}
+.mini p small{display:block; color:var(--ink-faint); font-size:12.5px; margin-top:3px}
+.mini .val{font-family:var(--wm); font-weight:700; color:var(--ink-dim); white-space:nowrap; font-size:13.5px}
+
+/* Contact */
+.contact{text-align:center}
+.big-mail{display:inline-block; margin:22px 0 0; font-family:var(--wm); font-weight:800;
+  letter-spacing:-.025em; font-size:clamp(24px,5.5vw,50px); text-decoration:none;
+  background:linear-gradient(100deg,var(--violet-soft),var(--pink));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  transition:opacity .2s ease}
+.big-mail:hover{opacity:.82}
+
+footer{border-top:1px solid var(--hair); padding:30px 0 40px; text-align:center;
+  font-size:12.5px; color:var(--ink-faint); letter-spacing:.03em}
+footer a{color:var(--ink-dim); text-decoration:none; border-bottom:1px solid var(--hair)}
+footer a:hover{color:var(--pink)}
+footer .sep{opacity:.4; padding:0 7px}
+
+:focus-visible{outline:2px solid var(--violet-soft); outline-offset:3px; border-radius:8px}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .eyebrow .dot{animation:none}
+  .rise{opacity:1; transform:none; filter:none; transition:none}
+  .plate,.card{transition:none !important; transform:none !important}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.className += ' js';</script>
+
+<div id="bg"></div>
+<canvas id="aurora" aria-hidden="true"></canvas>
+<div id="spot" aria-hidden="true"></div>
+<div id="grain" aria-hidden="true"></div>
+<div id="vig" aria-hidden="true"></div>
+
+<nav class="nav" aria-label="Sections">
+  <a href="#work">Work</a>
+  <a href="#projects">Projects</a>
+  <a href="#skills">Skills</a>
+  <a href="#contact">Contact</a>
+  <a class="home" href="index.html">MeAau ↗</a>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow rise"><span class="dot"></span>Navi Mumbai · open to internships</span>
+      <h1 class="name rise">Avinash<span class="l2">Vanamala</span></h1>
+      <p class="role rise">
+        Software developer working across <b>mobile, backend and applied ML</b> — currently building
+        MeAau, a production campus ride-sharing platform, end to end on my own.
+      </p>
+      <div class="cta-row rise">
+        <a class="btn primary" href="mailto:Avinash@meaau.in">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="m4 6 8 6 8-6"/></svg>
+          Get in touch
+        </a>
+        <a class="btn" href="https://github.com/agentAres47" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5a10.5 10.5 0 0 0-3.32 20.47c.53.1.72-.23.72-.5v-1.8c-2.92.64-3.54-1.4-3.54-1.4-.48-1.22-1.17-1.55-1.17-1.55-.96-.65.07-.64.07-.64 1.06.08 1.62 1.09 1.62 1.09.94 1.61 2.47 1.15 3.07.88.1-.68.37-1.15.67-1.41-2.33-.27-4.78-1.17-4.78-5.18 0-1.15.41-2.08 1.08-2.82-.11-.27-.47-1.34.1-2.79 0 0 .88-.28 2.888 1.08a10 10 0 0 1 5.26 0c2-1.36 2.88-1.08 2.88-1.08.58 1.45.21 2.52.11 2.79.67.74 1.07 1.67 1.07 2.82 0 4.02-2.45 4.9-4.79 5.16.38.33.71.97.71 1.96v2.9c0 .28.19.61.73.5A10.5 10.5 0 0 0 12 1.5Z"/></svg>
+          GitHub
+        </a>
+        <a class="btn" href="https://linkedin.com/in/avinashvanamala" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5ZM3 9h4v12H3zM9 9h3.8v1.65h.05c.53-.95 1.83-1.95 3.76-1.95C20.4 8.7 21 11 21 14.1V21h-4v-6.1c0-1.46-.03-3.34-2.04-3.34-2.04 0-2.36 1.6-2.36 3.24V21H9z"/></svg>
+          LinkedIn
+        </a>
+      </div>
+    </div>
+
+    <div class="plate-stage rise" id="plateStage">
+      <div class="plate" id="plate">
+        <div class="shine"></div>
+        <dl class="plate-inner">
+          <div class="stat"><dt>Focus</dt><dd>Full-stack<small>mobile · backend · ML</small></dd></div>
+          <div class="stat"><dt>Degree</dt><dd>B.Tech CSE ’27<small>Amity University Mumbai</small></dd></div>
+          <div class="stat"><dt>CGPA</dt><dd>8.20<small>semester 6</small></dd></div>
+          <div class="stat"><dt>Shipping</dt><dd>MeAau<small>30+ migrations, live backend</small></dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section id="work">
+  <div class="wrap">
+    <span class="eyebrow rise">Experience</span>
+    <h2 class="rise">Where I’ve <span class="grad">worked</span></h2>
+    <p class="sub rise">Two internships, both ending in something that shipped and stayed shipped.</p>
+
+    <div class="grid two" style="margin-top:34px">
+      <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+        <div class="role-head">
+          <h3 class="role-title">Medha Setu <span>· Android</span></h3>
+          <span class="when">Jun – Jul 2026</span>
+        </div>
+        <ul class="points">
+          <li>Migrated authentication from phone-based login to <b>Google Sign-In, Facebook Login and Email/OTP</b> using Firebase Auth.</li>
+          <li>Configured Firebase and Meta developer console integrations, resolving <b>SHA-1 certificate and OAuth</b> setup issues across providers.</li>
+        </ul>
+      </div></article></div>
+
+      <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+        <div class="role-head">
+          <h3 class="role-title">Transvolt Mobility <span>· Automation</span></h3>
+          <span class="when">Jun – Jul 2025</span>
+        </div>
+        <ul class="points">
+          <li>Cut manual document processing by automating <b>OCR extraction</b> with Python, FastAPI and the Groq LLaMA-4 Scout API to pull structured data out of documents.</li>
+          <li>Built <b>text and table recognition</b> systems, improving processing accuracy and workflow throughput.</li>
+        </ul>
+      </div></article></div>
+    </div>
+  </div>
+</section>
+
+<section id="projects">
+  <div class="wrap">
+    <span class="eyebrow rise">Projects</span>
+    <h2 class="rise">Things I’ve <span class="grad">built</span></h2>
+    <p class="sub rise">Each of these went further than a demo — real users, real deploys, real failure modes.</p>
+
+    <div class="grid" style="margin-top:34px">
+      <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+        <div class="proj-head">
+          <h3 class="proj-title">MeAau — campus ride-sharing platform</h3>
+          <a class="live" href="index.html">Live site ↗</a>
+        </div>
+        <div class="stack">
+          <span class="chip">React Native · Expo</span><span class="chip">TypeScript</span>
+          <span class="chip">Node · Express</span><span class="chip">PostgreSQL · Supabase</span>
+          <span class="chip">Turf.js</span><span class="chip">Railway</span>
+        </div>
+        <ul class="points">
+          <li>Architected and independently built a production-ready platform: a React Native app, <b>two Node/TypeScript services</b>, and a Postgres backend with <b>30+ migrations</b>, Row-Level Security, realtime matching, chat and push.</li>
+          <li>Designed a university SSO flow through an in-app WebView that clears <b>Cloudflare Turnstile</b> — without storing, logging or transmitting credentials to any app server.</li>
+          <li>Engineered a <b>concurrency-safe allocation engine</b> using Turf.js geospatial route scoring and Postgres <code>FOR UPDATE SKIP LOCKED</code>, eliminating double-booking when drivers accept simultaneously.</li>
+          <li>Moved time-critical scheduling to <b>pg_cron</b> jobs and deployed on Railway with Expo/FCM push, so ride expiry, AutoPool matching and notifications survive the app being closed.</li>
+        </ul>
+      </div></article></div>
+
+      <div class="grid two" style="gap:18px">
+        <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+          <div class="proj-head">
+            <h3 class="proj-title">Code Decay Prediction</h3>
+            <a class="live" href="https://code-decay.onrender.com" target="_blank" rel="noopener noreferrer">Live ↗</a>
+          </div>
+          <div class="stack">
+            <span class="chip">scikit-learn</span><span class="chip">XGBoost</span><span class="chip">Flask</span><span class="chip">Render</span>
+          </div>
+          <ul class="points">
+            <li>Full-stack AI app predicting software rot across <b>14+ languages</b>.</li>
+            <li>Trained and benchmarked <b>5 models</b> on <b>77,000+</b> real code samples.</li>
+            <li>Flask REST backend serving a custom frontend, deployed to Render.</li>
+          </ul>
+        </div></article></div>
+
+        <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+          <div class="proj-head"><h3 class="proj-title">Personal Cloud (DIY NAS)</h3></div>
+          <div class="stack">
+            <span class="chip">Ubuntu Linux</span><span class="chip">Samba</span><span class="chip">Ngrok</span>
+          </div>
+          <ul class="points">
+            <li>Self-hosted NAS on Ubuntu with Samba for centralised storage.</li>
+            <li>Secure remote access over <b>Ngrok</b> tunnelling across devices.</li>
+            <li>LAN networking, user permissions and shared-storage management.</li>
+          </ul>
+        </div></article></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="skills">
+  <div class="wrap">
+    <span class="eyebrow rise">Toolkit</span>
+    <h2 class="rise">What I <span class="grad">work with</span></h2>
+
+    <div class="card-stage rise" style="margin-top:32px"><article class="card"><div class="shine"></div><div class="card-body">
+      <div class="skill-row"><h3>Languages</h3><div class="stack" style="margin:0">
+        <span class="chip">Python</span><span class="chip">JavaScript</span><span class="chip">TypeScript</span><span class="chip">SQL</span><span class="chip">Java</span>
+      </div></div>
+      <div class="skill-row"><h3>Frameworks</h3><div class="stack" style="margin:0">
+        <span class="chip">React Native (Expo)</span><span class="chip">React</span><span class="chip">Node.js</span><span class="chip">Express.js</span><span class="chip">FastAPI</span><span class="chip">Flask</span>
+      </div></div>
+      <div class="skill-row"><h3>Data</h3><div class="stack" style="margin:0">
+        <span class="chip">PostgreSQL</span><span class="chip">Supabase</span><span class="chip">Firebase</span>
+      </div></div>
+      <div class="skill-row"><h3>AI &amp; ML</h3><div class="stack" style="margin:0">
+        <span class="chip">scikit-learn</span><span class="chip">XGBoost</span><span class="chip">OCR</span><span class="chip">LLM integration</span><span class="chip">Prompt engineering</span>
+      </div></div>
+      <div class="skill-row"><h3>Cloud &amp; tools</h3><div class="stack" style="margin:0">
+        <span class="chip">Git · GitHub</span><span class="chip">Linux</span><span class="chip">Railway</span><span class="chip">Render</span><span class="chip">Postman</span><span class="chip">OpenAI</span><span class="chip">Claude Code</span><span class="chip">Groq API</span>
+      </div></div>
+      <div class="skill-row"><h3>Beyond code</h3><div class="stack" style="margin:0">
+        <span class="chip">Team leadership</span><span class="chip">Project management</span><span class="chip">Problem solving</span>
+        <span class="chip">English · Hindi · Telugu · Marathi</span><span class="chip">French (beginner)</span>
+      </div></div>
+    </div></article></div>
+  </div>
+</section>
+
+<section id="education">
+  <div class="wrap">
+    <span class="eyebrow rise">Background</span>
+    <h2 class="rise">Education &amp; <span class="grad">recognition</span></h2>
+
+    <div class="grid two" style="margin-top:32px">
+      <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+        <h3 class="role-title" style="margin-bottom:8px">Education</h3>
+        <div class="mini"><p>B.Tech, Computer Science<small>Amity University Mumbai · pursuing</small></p><span class="val">CGPA 8.20</span></div>
+        <div class="mini"><p>HSC<small>Nirala College, Nagpur</small></p><span class="val">2023 · 69%</span></div>
+        <div class="mini"><p>CBSE<small>KNMPS, Nagpur</small></p><span class="val">2021 · 74%</span></div>
+      </div></article></div>
+
+      <div class="card-stage rise"><article class="card"><div class="shine"></div><div class="card-body">
+        <h3 class="role-title" style="margin-bottom:8px">Achievements</h3>
+        <div class="mini"><p>Class Representative<small>Semesters 3–6 · 2+ years</small></p><span class="val">Leadership</span></div>
+        <div class="mini"><p>NASA Space Apps Challenge<small>International participant</small></p><span class="val">2025</span></div>
+        <div class="mini"><p>HackCelestial 2.0<small>Pillai College of Engineering · Ideathon round</small></p><span class="val">Finalist</span></div>
+        <div class="mini"><p>Programming with Python<small>Internshala Trainings</small></p><span class="val">95%</span></div>
+      </div></article></div>
+    </div>
+  </div>
+</section>
+
+<section id="contact" class="contact">
+  <div class="wrap">
+    <span class="eyebrow rise"><span class="dot"></span>Available</span>
+    <h2 class="rise">Let’s build <span class="grad">something</span></h2>
+    <p class="sub rise" style="margin:0 auto">Open to internships and collaboration — especially anything mobile, backend or applied ML.</p>
+    <a class="big-mail rise" href="mailto:Avinash@meaau.in">Avinash@meaau.in</a>
+    <div class="cta-row rise" style="justify-content:center; margin-top:26px">
+      <a class="btn" href="https://github.com/agentAres47" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a class="btn" href="https://linkedin.com/in/avinashvanamala" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    © <span id="yr">2026</span> Avinash Vanamala
+    <span class="sep">·</span><a href="index.html">MeAau</a>
+    <span class="sep">·</span><a href="mailto:Avinash@meaau.in">Avinash@meaau.in</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  /* Aurora — same field as the landing page so the two pages feel continuous.
+     Paused when the tab is hidden; a background canvas has no business
+     burning battery nobody is looking at. */
+  var cv = document.getElementById('aurora'), ctx = cv.getContext('2d'), W, H, dpr, raf = 0;
+  function size(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.width = Math.floor(innerWidth * dpr);
+    H = cv.height = Math.floor(innerHeight * dpr);
+    cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+  }
+  size(); addEventListener('resize', size, {passive:true});
+
+  var blobs = [
+    {x:.28,y:.26,r:.44,c:[139,92,246],p:0},
+    {x:.72,y:.36,r:.40,c:[236,72,153],p:2.1},
+    {x:.50,y:.68,r:.36,c:[167,139,250],p:4.0},
+    {x:.18,y:.78,r:.26,c:[247,166,193],p:5.4}
+  ];
+  function frame(t){
+    ctx.clearRect(0,0,W,H); ctx.globalCompositeOperation = 'lighter';
+    var s = t * 0.00006;
+    for (var i=0;i<blobs.length;i++){
+      var b = blobs[i];
+      var cx = (b.x + Math.sin(s+b.p)*0.05)*W, cy = (b.y + Math.cos(s*1.3+b.p)*0.05)*H;
+      var rad = b.r*W*(0.9 + 0.12*Math.sin(s*1.7+b.p));
+      var g = ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+      g.addColorStop(0,   'rgba('+b.c[0]+','+b.c[1]+','+b.c[2]+',0.26)');
+      g.addColorStop(0.5, 'rgba('+b.c[0]+','+b.c[1]+','+b.c[2]+',0.07)');
+      g.addColorStop(1,   'rgba('+b.c[0]+','+b.c[1]+','+b.c[2]+',0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,rad,0,7); ctx.fill();
+    }
+    if (!reduce) raf = requestAnimationFrame(frame);
+  }
+  if (reduce) frame(0); else raf = requestAnimationFrame(frame);
+  document.addEventListener('visibilitychange', function(){
+    if (reduce) return;
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else if (!raf) raf = requestAnimationFrame(frame);
+  });
+
+  /* Scroll reveal. Unobserve after firing — these animate once, and leaving
+     observers attached to every card costs work on every scroll. */
+  var items = document.querySelectorAll('.rise');
+  if (reduce || !('IntersectionObserver' in window)) {
+    for (var i=0;i<items.length;i++) items[i].classList.add('in');
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var el = e.target;
+        // Stagger siblings so a row of cards arrives in sequence, not as a slab.
+        var sibs = el.parentNode ? Array.prototype.filter.call(el.parentNode.children, function(n){
+          return n.classList && n.classList.contains('rise');
+        }) : [el];
+        el.style.transitionDelay = (Math.max(0, sibs.indexOf(el)) * 90) + 'ms';
+        el.classList.add('in');
+        io.unobserve(el);
+      });
+    }, {rootMargin:'0px 0px -12% 0px', threshold:0.12});
+    for (var j=0;j<items.length;j++) io.observe(items[j]);
+
+    /* Failsafe. Nothing on this page may depend on the observer firing —
+       an unfired callback would leave content at opacity:0 forever, and a
+       blank CV is unrecoverable. Anything still hidden after 2s is shown. */
+    setTimeout(function(){
+      for (var k=0;k<items.length;k++){
+        if (!items[k].classList.contains('in')) items[k].classList.add('in');
+      }
+    }, 2000);
+  }
+
+  if (reduce) return;
+
+  /* Pointer work, all of it rAF-throttled and transform-only. */
+  var mx = 50, my = 30, pending = false;
+  addEventListener('pointermove', function(e){
+    mx = (e.clientX / innerWidth) * 100;
+    my = (e.clientY / innerHeight) * 100;
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function(){
+      document.documentElement.style.setProperty('--mx', mx + '%');
+      document.documentElement.style.setProperty('--my', my + '%');
+      pending = false;
+    });
+  }, {passive:true});
+
+  /* 3D tilt. Rotation is small on purpose — past ~10deg it stops reading as
+     depth and starts reading as a gimmick. Skipped on coarse pointers, where
+     there is no hover and the transform would just stick after a tap. */
+  var fine = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  if (fine) {
+    var stages = document.querySelectorAll('.card-stage, .plate-stage');
+    Array.prototype.forEach.call(stages, function(stage){
+      var el = stage.querySelector('.card, .plate');
+      if (!el) return;
+      var queued = false, lx = 0, ly = 0;
+      stage.addEventListener('pointermove', function(e){
+        var r = stage.getBoundingClientRect();
+        lx = (e.clientX - r.left) / r.width;
+        ly = (e.clientY - r.top) / r.height;
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(function(){
+          el.style.transition = 'transform .12s linear';
+          el.style.transform =
+            'perspective(1100px) rotateX(' + ((ly - .5) * -7).toFixed(2) + 'deg) rotateY(' +
+            ((lx - .5) * 9).toFixed(2) + 'deg) translateZ(6px)';
+          el.style.setProperty('--px', (lx * 100) + '%');
+          el.style.setProperty('--py', (ly * 100) + '%');
+          queued = false;
+        });
+      }, {passive:true});
+      stage.addEventListener('pointerleave', function(){
+        // Longer easing on the way out so it settles rather than snaps.
+        el.style.transition = 'transform .55s cubic-bezier(.16,1,.3,1)';
+        el.style.transform = '';
+      });
+    });
+  }
+})();
+</script>
+</body>
+</html>
