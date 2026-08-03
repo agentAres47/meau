@@ -1,0 +1,26 @@
+# Deploy config for the meaau.in static site (Workers Static Assets).
+#
+# ⚠️ VERIFY `name` BEFORE THE FIRST DEPLOY.
+# It must match the EXISTING Worker in the Cloudflare dashboard — the handoff
+# records it as `sweet-shadow-0946`, but confirm it. If the name is wrong,
+# wrangler will happily create a SECOND Worker, the custom domain will stay
+# attached to the old one, and meaau.in will look unchanged while the deploy
+# reports success — a confusing failure that looks like nothing happened.
+#
+# Deploy:
+#   npx wrangler login      # one-time, opens a browser
+#   npx wrangler deploy
+#
+# Lives at the repo ROOT, not inside website/ — a config file inside the assets
+# directory would be uploaded and served publicly at /wrangler.toml.
+# Static Assets serves the website/ directory directly, no Worker script needed.
+# html_handling gives clean URLs, so the portfolio is reachable at
+# /avinash as well as /avinash.html.
+
+name = "sweet-shadow-0946"
+compatibility_date = "2026-08-03"
+
+[assets]
+directory = "./website"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
