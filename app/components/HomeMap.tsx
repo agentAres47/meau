@@ -29,6 +29,13 @@ type Props = {
   // before the native map exists is silently dropped, leaving the camera at
   // initialRegion (the "driver map is offset from my location" bug).
   onReady?: () => void;
+  // The user dragged the map. Callers that animate the camera on a timer (the
+  // passenger home's search drift) use this to stop: once someone has taken
+  // hold of the map, moving it under them is the app fighting the user.
+  onUserPan?: () => void;
+  // Extra polylines drawn under the primary route — e.g. the currently
+  // selected driver's path in the passenger's results.
+  secondaryPath?: LatLng[];
 };
 
 // Full-screen interactive map — the canvas the passenger home screen floats
@@ -36,7 +43,18 @@ type Props = {
 // REDESIGN_PLAN §Locked decisions); camera movement is driven imperatively
 // by the parent via the forwarded MapView ref (animateToRegion).
 export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
-  { initialRegion, currentLocation, pickup, drop, path, mapPadding, recenterBottomOffset = 24, onReady },
+  {
+    initialRegion,
+    currentLocation,
+    pickup,
+    drop,
+    path,
+    mapPadding,
+    recenterBottomOffset = 24,
+    onReady,
+    onUserPan,
+    secondaryPath,
+  },
   forwardedRef
 ) {
   // react-native-maps (Android) crashes with a NullPointerException if a
@@ -87,11 +105,15 @@ export const HomeMap = forwardRef<MapView, Props>(function HomeMap(
           setMapReady(true);
           onReady?.();
         }}
+        onPanDrag={onUserPan}
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
         toolbarEnabled={false}
       >
+        {secondaryPath && secondaryPath.length > 1 ? (
+          <Polyline coordinates={secondaryPath} strokeColor={colors.success} strokeWidth={3} />
+        ) : null}
         {path && path.length > 1 ? (
           <Polyline coordinates={path} strokeColor={colors.accent} strokeWidth={4} />
         ) : null}

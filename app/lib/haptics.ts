@@ -7,6 +7,13 @@ export function matchHaptic() {
   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
 
+// The search settling into its answer — softer than matchHaptic on purpose:
+// results arriving is not the same event as being matched, and the two must
+// not feel identical in the hand.
+export function arriveHaptic() {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+}
+
 // Light tick for discrete selections (e.g. picking a time slot).
 export function selectionHaptic() {
   Haptics.selectionAsync().catch(() => {});
