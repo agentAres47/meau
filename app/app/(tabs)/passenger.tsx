@@ -287,12 +287,17 @@ function SearchForm() {
     }
   }, [pickup, drop, phase]);
 
-  // The `index` prop alone is enough in principle, but it changes in the same
-  // render as `snapPoints` — belt-and-braces so the climb into the results can
-  // never be lost to that ordering.
-  useEffect(() => {
-    if (phase === 'results') sheetRef.current?.snapToIndex(1);
-  }, [phase]);
+  // NOTE: there is deliberately no imperative snapToIndex(1) here. A previous
+  // version called it in an effect on entering 'results' as "belt-and-braces"
+  // for the index/snapPoints ordering — and that call was itself the bug: the
+  // effect ran before the sheet had processed the new two-point snapPoints, so
+  // it was told to go to index 1 while it still had the one-point 'searching'
+  // range, and the app died with
+  //   Invariant Violation: 'index' was provided but out of the provided snap
+  //   points range! expected value to be between -1, 0
+  // right in the middle of a search. The range is now the same across
+  // 'searching' and 'results' (see snapPoints below), so the declarative
+  // `index` prop is sufficient AND the race cannot occur.
 
   // Status lines, driven by elapsed time rather than by fake progress.
   useEffect(() => {
@@ -513,11 +518,20 @@ function SearchForm() {
   const dockFootprint = insets.bottom + DOCK_MARGIN + DOCK_HEIGHT + spacing.md;
   const topOffset = insets.top + spacing.md;
 
-  const resultsHeight = Math.round(height * 0.66);
+  // Clamped so the two points are always strictly ascending: a snapPoints array
+  // that isn't ascending is also an invariant violation in this library, and on
+  // a short enough screen 66% of the height could otherwise fall below
+  // SEARCHING_HEIGHT.
+  const resultsHeight = Math.max(SEARCHING_HEIGHT + 80, Math.round(height * 0.66));
   const snapPoints = useMemo(() => {
-    if (phase === 'searching') return [SEARCHING_HEIGHT];
-    if (phase === 'results') return [SEARCHING_HEIGHT, resultsHeight];
-    return IDLE_SNAPS;
+    if (phase === 'idle') return IDLE_SNAPS;
+    // 'searching' and 'results' share an IDENTICAL two-point range on purpose.
+    // The move between them is then a pure `index` change with no snapPoints
+    // change at all, so the sheet can never be asked for an index its current
+    // range doesn't have — which is exactly what crashed the app mid-search.
+    // The sheet is pinned to index 0 while searching (and panning is disabled
+    // below), so the unused second point is never reachable by the user.
+    return [SEARCHING_HEIGHT, resultsHeight];
   }, [phase, resultsHeight]);
   const sheetIndex = phase === 'results' ? 1 : 0;
   const sheetHeight = phase === 'idle' ? IDLE_SNAPS[0] : snapPoints[sheetIndex];
@@ -605,6 +619,11 @@ function SearchForm() {
           index={sheetIndex}
           enableDynamicSizing={false}
           enablePanDownToClose={false}
+          // Locked while searching: there is nothing to expand into yet, and it
+          // keeps the second snap point (which only exists so the range matches
+          // 'results' — see snapPoints) out of reach.
+          enableContentPanningGesture={phase !== 'searching'}
+          enableHandlePanningGesture={phase !== 'searching'}
           backgroundStyle={{
             backgroundColor: colors.surface,
             borderTopLeftRadius: radius.xxl,
