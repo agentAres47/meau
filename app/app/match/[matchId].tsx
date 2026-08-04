@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, TextInput, ScrollView, Alert } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../../components/Screen';
@@ -51,9 +51,10 @@ export default function MatchChat() {
   const listRef = useRef<FlatList<Message>>(null);
   const insets = useSafeAreaInsets();
   const ratedRef = useRef(false);
-  // Measured so KeyboardAvoidingView knows how much sits above it (status bar +
-  // header) to offset the keyboard correctly.
-  const [headerH, setHeaderH] = useState(0);
+  // Drives dropping the bottom safe-area inset while the keyboard is up, so the
+  // composer sits flush against the keys (WhatsApp-style) instead of floating
+  // above them.
+  const keyboardVisible = useKeyboardState((s) => s.isVisible);
 
   // #7: the messaging screen is the ONLY place we suppress this match's pushes
   // (the ride/matched screen now lets them through). Opening the chat also
@@ -215,10 +216,7 @@ export default function MatchChat() {
   return (
     <Screen edges={['top']}>
       {/* Header */}
-      <View
-        onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
-        className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2"
-      >
+      <View className="flex-row items-center gap-3 px-4 py-3 border-b border-surface2">
         <Pressable onPress={onBack} accessibilityLabel="Back" className="active:opacity-70 -ml-1">
           <ChevronLeft color={colors.text} size={26} />
         </Pressable>
@@ -263,13 +261,14 @@ export default function MatchChat() {
       </View>
 
       {/* react-native-keyboard-controller's KeyboardAvoidingView — reliable on
-          Android edge-to-edge (RN's core one is not). Offset = the status bar +
-          header sitting above this view. */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-        keyboardVerticalOffset={insets.top + headerH}
-      >
+          Android edge-to-edge (RN's core one is not).
+          NO keyboardVerticalOffset on purpose. Unlike RN's version, this one
+          measures the view's absolute frame itself:
+            padding = frame.bottom - (screenHeight - keyboardHeight - offset)
+          so any offset is added straight on top of the correct value. Passing
+          insets.top + headerH here (~250px) pushed the composer that far ABOVE
+          the keyboard — the visible gap. It belongs at 0. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <FlatList
           ref={listRef}
           data={messages}
@@ -319,11 +318,14 @@ export default function MatchChat() {
           ))}
         </ScrollView>
 
-        {/* Composer — reserve the bottom safe-area inset so it (and the last
-            message above it) never sits under the gesture nav bar. */}
+        {/* Composer — reserves the bottom safe-area inset so it never sits under
+            the gesture nav bar. That inset is dropped while the keyboard is up:
+            the keyboard already covers the nav bar, so keeping it would leave a
+            dead strip between the input and the keys instead of the input
+            sitting flush against them. */}
         <View
           className="flex-row items-end gap-2 px-4 pt-1"
-          style={{ paddingBottom: insets.bottom + 8 }}
+          style={{ paddingBottom: (keyboardVisible ? 0 : insets.bottom) + 8 }}
         >
           <TextInput
             value={text}

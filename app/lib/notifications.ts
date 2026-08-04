@@ -133,6 +133,9 @@ export function routeFromData(data: unknown): void {
   else if (d.type === 'driver_incoming' && d.request_id) router.push(`/ride/request/${d.request_id}`);
   else if (d.type === 'request_declined') router.push('/(tabs)/passenger');
   else if (d.type === 'ride_cancelled') router.push(d.role === 'driver' ? '/(tabs)/driver' : '/(tabs)/passenger');
+  // F4: a routine just auto-published today's ride. The driver's own tab is
+  // where that ride now lives, so that's where this goes.
+  else if (d.type === 'commute_live') router.push('/(tabs)/driver');
   // 'rate' type no longer routed — the rate screen was removed. A stale
   // queued/delivered notification of that type is now a silent no-op.
 }

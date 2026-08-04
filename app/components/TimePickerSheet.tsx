@@ -10,6 +10,11 @@ import { selectionHaptic } from '../lib/haptics';
 // JS-only (no native picker), consistent with FareConfirmSheet's pattern.
 type Props = {
   onConfirm: (d: Date) => void;
+  // Recurring schedules need every hour of the day, not just the ones still
+  // ahead of us: you set a 9am routine at 8pm. In this mode the Today/Tomorrow
+  // chips are meaningless (only the time-of-day is kept) so they're hidden.
+  allDay?: boolean;
+  title?: string;
 };
 
 function timeLabel(d: Date): string {
@@ -37,10 +42,19 @@ function slotsFor(dayOffset: number): Date[] {
   return out;
 }
 
+// Every 15-minute slot in a day, independent of the current time.
+function allDaySlots(): Date[] {
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  const out: Date[] = [];
+  for (let i = 0; i < 96; i++) out.push(new Date(base.getTime() + i * 15 * 60_000));
+  return out;
+}
+
 export const TimePickerSheet = forwardRef<ElementRef<typeof BottomSheetModal>, Props>(
-  function TimePickerSheet({ onConfirm }, ref) {
+  function TimePickerSheet({ onConfirm, allDay = false, title = 'When?' }, ref) {
     const [day, setDay] = useState(0);
-    const slots = useMemo(() => slotsFor(day), [day]);
+    const slots = useMemo(() => (allDay ? allDaySlots() : slotsFor(day)), [allDay, day]);
 
     return (
       <BottomSheetModal
@@ -50,11 +64,13 @@ export const TimePickerSheet = forwardRef<ElementRef<typeof BottomSheetModal>, P
         handleIndicatorStyle={{ backgroundColor: colors.glassBorder }}
       >
         <View className="px-6 pt-2 pb-3 gap-3">
-          <Text className="text-text text-lg font-bold">When?</Text>
-          <View className="flex-row gap-2">
-            <Chip label="Today" selected={day === 0} onPress={() => setDay(0)} />
-            <Chip label="Tomorrow" selected={day === 1} onPress={() => setDay(1)} />
-          </View>
+          <Text className="text-text text-lg font-bold">{title}</Text>
+          {allDay ? null : (
+            <View className="flex-row gap-2">
+              <Chip label="Today" selected={day === 0} onPress={() => setDay(0)} />
+              <Chip label="Tomorrow" selected={day === 1} onPress={() => setDay(1)} />
+            </View>
+          )}
         </View>
         <BottomSheetFlatList
           data={slots}

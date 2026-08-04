@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, { BottomSheetScrollView, BottomSheetModal } from '@gorhom/bottom-sheet';
 import type MapView from 'react-native-maps';
-import { Car, Clock } from 'lucide-react-native';
+import { Car, Clock, CalendarClock } from 'lucide-react-native';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { DarkGlass } from '../../components/DarkGlass';
 import { HomeMap } from '../../components/HomeMap';
@@ -402,6 +402,17 @@ export default function Driver() {
                 {formError ? <Text className="text-danger text-sm">{formError}</Text> : null}
 
                 <Button label="Start ride" onPress={openSeatsConfirm} />
+
+                {/* F4 — for the trip they make every day, so they stop posting
+                    it by hand every morning. */}
+                <Pressable
+                  onPress={() => router.push('/ride/routines')}
+                  accessibilityRole="button"
+                  className="flex-row items-center justify-center gap-2 py-2 active:opacity-60"
+                >
+                  <CalendarClock color={colors.muted} size={16} />
+                  <Text className="text-muted text-sm">Set up a daily routine</Text>
+                </Pressable>
               </View>
             )}
           </BottomSheetScrollView>

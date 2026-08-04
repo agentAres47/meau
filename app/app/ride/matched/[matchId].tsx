@@ -10,7 +10,6 @@ import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { MapPreview } from '../../../components/MapPreview';
-import { VehicleSeats } from '../../../components/VehicleSeats';
 import { getMatchStatus, cancelMatch, endRide, subscribeMatch, getMatchOfferedPrice, type MatchStatus } from '../../../lib/match';
 import { subscribeRequest } from '../../../lib/passenger';
 import { decodeRoute, openNavigationTo, getEta, type Eta } from '../../../lib/maps';
@@ -261,17 +260,6 @@ export default function MatchedRide() {
             <Text className="text-text text-sm font-semibold tabular-nums">₹{fare ?? status.price_per_seat}</Text>
           </View>
         </Card>
-
-        {status.vehicle_type ? (
-          <Card>
-            <VehicleSeats
-              vehicleType={status.vehicle_type}
-              seatsTotal={status.vehicle_seats_total ?? 1}
-              seatsOccupied={status.seats_occupied}
-              mySeatIndex={status.my_role === 'passenger' ? status.my_seat_index : null}
-            />
-          </Card>
-        ) : null}
 
         {error ? <Text className="text-danger text-sm text-center">{error}</Text> : null}
 
