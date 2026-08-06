@@ -51,22 +51,32 @@ export async function createRideRequest(params: {
 // Shared POST to the matching service with a hard timeout.
 export async function callMatching<T>(path: string, body: unknown): Promise<T> {
   if (!MATCHING) throw new Error('Matching service is not configured.');
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (sessionError || !accessToken) throw new Error('Your session expired. Sign in again.');
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
+  let res: Response;
   try {
-    const res = await fetch(`${MATCHING}${path}`, {
+    res = await fetch(`${MATCHING}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`match_${res.status}`);
-    return (await res.json()) as T;
   } catch {
     throw new Error("Couldn't reach the matching service. Check your connection.");
   } finally {
     clearTimeout(timer);
   }
+
+  if (res.status === 401) throw new Error('Your session expired. Sign in again.');
+  if (!res.ok) throw new Error(`match_${res.status}`);
+  return (await res.json()) as T;
 }
 
 export async function matchRides(requestId: string): Promise<Match[]> {

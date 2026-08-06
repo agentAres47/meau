@@ -1,10 +1,11 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
 import { rankMatches, type Candidate, type RequestGeo } from './match.js';
 import { startNotificationDrainer } from './notify.js';
 import { errDetail, loggingFetch } from './errors.js';
+import { bearerToken, isUuid, ownsRequest } from './security.js';
 
 const PORT = Number(process.env.PORT ?? 8081);
 const TIME_WINDOW_MIN = Number(process.env.TIME_WINDOW_MIN ?? 30);
@@ -26,121 +27,164 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// Find live tokens matching an existing ride_requests row (route-aware).
-app.post('/match', async (req, res) => {
-  const { request_id } = (req.body ?? {}) as { request_id?: string };
-  if (!request_id) return res.status(400).json({ error: 'missing_request_id' });
+type Caller = { profileId: string; isDriverVerified: boolean };
 
-  const { data: geoRows, error: geoErr } = await admin.rpc('request_geo', { p_request_id: request_id });
-  if (geoErr) {
-    // Log the real reason: the client only ever sees the flat error code, so an
-    // unlogged failure here is invisible from both ends.
-    console.error('/match request_geo failed:', errDetail(geoErr));
+const requireCaller: RequestHandler = async (req, res, next) => {
+  try {
+    const token = bearerToken(req.header('authorization'));
+    if (!token) return void res.status(401).json({ error: 'missing_session' });
+
+    const { data: authData, error: authError } = await admin.auth.getUser(token);
+    if (authError || !authData.user) return void res.status(401).json({ error: 'invalid_session' });
+
+    const { data: profile, error: profileError } = await admin
+      .from('profiles')
+      .select('id, verified_amity, is_driver_verified')
+      .eq('auth_user_id', authData.user.id)
+      .maybeSingle();
+    if (profileError) {
+      console.error('caller profile lookup failed:', errDetail(profileError));
+      return void res.status(500).json({ error: 'profile_lookup_failed' });
+    }
+    if (!profile?.verified_amity) return void res.status(403).json({ error: 'verified_profile_required' });
+
+    res.locals.caller = {
+      profileId: profile.id,
+      isDriverVerified: profile.is_driver_verified,
+    } satisfies Caller;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Express 4 does not forward rejected async handlers to error middleware.
+const asyncRoute = (handler: (req: Request, res: Response) => Promise<unknown>): RequestHandler =>
+  (req, res, next) => void handler(req, res).catch(next);
+
+// Find live tokens matching an existing ride_requests row (route-aware).
+app.post('/match', requireCaller, asyncRoute(async (req, res) => {
+  const caller = res.locals.caller as Caller;
+  const { request_id } = (req.body ?? {}) as { request_id?: string };
+  if (!isUuid(request_id)) return res.status(400).json({ error: 'invalid_request_id' });
+
+  const { data: geoRows, error: geoError } = await admin.rpc('request_geo', { p_request_id: request_id });
+  if (geoError) {
+    console.error('/match request_geo failed:', errDetail(geoError));
     return res.status(500).json({ error: 'request_lookup_failed' });
   }
-  const reqGeo = (geoRows as RequestGeo[] | null)?.[0];
-  if (!reqGeo) return res.status(404).json({ error: 'request_not_found' });
+  const requestGeo = (geoRows as (RequestGeo & { passenger_id: string; status: string })[] | null)?.[0];
+  if (!requestGeo) return res.status(404).json({ error: 'request_not_found' });
+  if (!ownsRequest(caller.profileId, requestGeo.passenger_id)) {
+    return res.status(403).json({ error: 'request_not_owned' });
+  }
+  if (requestGeo.status !== 'searching') return res.status(409).json({ error: 'request_not_searching' });
 
-  // Whose request this is — used to hide the passenger's own ride tokens from
-  // their results (you can't ride with yourself). live_token_candidates doesn't
-  // take a passenger id, so we filter here.
-  const { data: reqRow } = await admin
-    .from('ride_requests')
-    .select('passenger_id')
-    .eq('id', request_id)
-    .single();
-  const passengerId = reqRow?.passenger_id;
-
-  const { data: candidates, error: candErr } = await admin.rpc('live_token_candidates', {
-    p_desired: reqGeo.desired_time,
+  const { data: candidates, error: candidateError } = await admin.rpc('live_token_candidates', {
+    p_desired: requestGeo.desired_time,
     p_window_min: TIME_WINDOW_MIN,
   });
-  if (candErr) return res.status(500).json({ error: 'candidate_lookup_failed' });
+  if (candidateError) {
+    console.error('/match candidate lookup failed:', errDetail(candidateError));
+    return res.status(500).json({ error: 'candidate_lookup_failed' });
+  }
 
-  const own = ((candidates as Candidate[] | null) ?? []).filter((c) => c.driver_id !== passengerId);
-  const matches = rankMatches(reqGeo, own);
-  return res.json({ matches });
-});
+  const eligible = ((candidates as Candidate[] | null) ?? []).filter(
+    (candidate) => candidate.driver_id !== caller.profileId && candidate.driver_verified
+  );
+  return res.json({ matches: rankMatches(requestGeo, eligible) });
+}));
 
-// Passenger requests one or more tokens (fan-out). Push wiring is Phase 5.
-app.post('/request', async (req, res) => {
+// Passenger requests one or more tokens (fan-out).
+app.post('/request', requireCaller, asyncRoute(async (req, res) => {
+  const caller = res.locals.caller as Caller;
   const { request_id, token_ids } = (req.body ?? {}) as { request_id?: string; token_ids?: string[] };
-  if (!request_id || !Array.isArray(token_ids) || token_ids.length === 0) {
+  if (!isUuid(request_id) || !Array.isArray(token_ids) || token_ids.length === 0) {
     return res.status(400).json({ error: 'missing_request_or_tokens' });
   }
+  const uniqueTokenIds = [...new Set(token_ids)];
+  if (uniqueTokenIds.length > 20 || uniqueTokenIds.some((id) => !isUuid(id))) {
+    return res.status(400).json({ error: 'invalid_token_ids' });
+  }
 
-  // Whose request this is — the write-boundary guard against self-matching: a
-  // driver must never create a request_target against their own ride token,
-  // regardless of how they got here (stale client, tab nav, etc.).
-  const { data: reqRow } = await admin
+  const { data: requestRow, error: requestError } = await admin
     .from('ride_requests')
-    .select('passenger_id')
+    .select('passenger_id, status')
     .eq('id', request_id)
-    .single();
-  const passengerId = reqRow?.passenger_id;
+    .maybeSingle();
+  if (requestError) return res.status(500).json({ error: 'request_lookup_failed' });
+  if (!requestRow) return res.status(404).json({ error: 'request_not_found' });
+  if (!ownsRequest(caller.profileId, requestRow.passenger_id)) {
+    return res.status(403).json({ error: 'request_not_owned' });
+  }
+  if (requestRow.status !== 'searching') return res.status(409).json({ error: 'request_not_searching' });
 
-  // Resolve each token's driver so targets carry driver_id.
-  const { data: tokens, error: tErr } = await admin
+  const { data: tokens, error: tokenError } = await admin
     .from('ride_tokens')
     .select('id, driver_id, status, seats_left')
-    .in('id', token_ids);
-  if (tErr) return res.status(500).json({ error: 'token_lookup_failed' });
+    .in('id', uniqueTokenIds);
+  if (tokenError) return res.status(500).json({ error: 'token_lookup_failed' });
 
   const rows = (tokens ?? [])
-    .filter((t) => t.status === 'live' && t.seats_left > 0 && t.driver_id !== passengerId)
-    .map((t) => ({ request_id, token_id: t.id, driver_id: t.driver_id, state: 'pending' }));
+    .filter((token) => token.status === 'live' && token.seats_left > 0 && token.driver_id !== caller.profileId)
+    .map((token) => ({ request_id, token_id: token.id, driver_id: token.driver_id, state: 'pending' }));
   if (rows.length === 0) return res.status(409).json({ error: 'no_live_tokens' });
 
-  const { error: insErr } = await admin
+  const { error: insertError } = await admin
     .from('request_targets')
     .upsert(rows, { onConflict: 'request_id,token_id', ignoreDuplicates: true });
-  if (insErr) return res.status(500).json({ error: 'request_failed' });
+  if (insertError) return res.status(500).json({ error: 'request_failed' });
 
   return res.json({ ok: true, targeted: rows.length });
-});
+}));
 
-// Driver accepts — atomic race winner via the accept_ride_request RPC.
-app.post('/accept', async (req, res) => {
-  const { request_id, token_id, driver_id } = (req.body ?? {}) as {
-    request_id?: string;
-    token_id?: string;
-    driver_id?: string;
-  };
-  if (!request_id || !token_id || !driver_id) {
-    return res.status(400).json({ error: 'missing_fields' });
-  }
+// Driver identity comes from the bearer session, never caller-controlled JSON.
+app.post('/accept', requireCaller, asyncRoute(async (req, res) => {
+  const caller = res.locals.caller as Caller;
+  const { request_id, token_id } = (req.body ?? {}) as { request_id?: string; token_id?: string };
+  if (!isUuid(request_id) || !isUuid(token_id)) return res.status(400).json({ error: 'missing_fields' });
+  if (!caller.isDriverVerified) return res.status(403).json({ error: 'verified_driver_required' });
 
   const { data, error } = await admin.rpc('accept_ride_request', {
     p_request_id: request_id,
     p_token_id: token_id,
-    p_driver_id: driver_id,
+    p_driver_id: caller.profileId,
   });
   if (error) {
     if (error.message.includes('already_matched')) return res.status(409).json({ error: 'already_matched' });
+    if (error.message.includes('token_unavailable')) return res.status(409).json({ error: 'token_unavailable' });
+    if (error.message.includes('request_not_found')) return res.status(404).json({ error: 'request_not_found' });
+    if (
+      error.message.includes('driver_token_mismatch') ||
+      error.message.includes('target_not_pending') ||
+      error.message.includes('self_match') ||
+      error.message.includes('driver_not_verified')
+    ) {
+      return res.status(403).json({ error: 'accept_not_authorized' });
+    }
+    console.error('/accept RPC failed:', errDetail(error));
     return res.status(500).json({ error: 'accept_failed' });
   }
   return res.json({ match_id: data });
-});
+}));
 
-// Scheduling — see PHASE0_DESIGN.md.
-//
-// expire_stale_rows() is NO LONGER scheduled here. It is correctness-critical
-// (stale 'live' tokens pollute matching) and must not depend on this single
-// process, so it now runs on pg_cron (migration 0016) as its sole owner.
-//
-// run_autopool_matching() stays here as the PRIMARY 5s low-latency path for the
-// "match me now" pool flow — pg_cron's classic 60s granularity would be too slow
-// for it. Migration 0016 adds a 60s pg_cron BACKSTOP so pooling still happens
-// (within <=60s) if this process is down; double-execution is safe because the
-// function uses FOR UPDATE SKIP LOCKED + per-profile dedup (idempotent).
+// Scheduling -- see PHASE0_DESIGN.md.
+// expire_stale_rows() lives in pg_cron. Auto Pool keeps this primary 5-second
+// path plus pg_cron's idempotent 60-second safety net.
 setInterval(() => {
-  admin.rpc('run_autopool_matching').then(({ error }) => {
-    if (error) console.error('run_autopool_matching failed:', errDetail(error));
-  });
+  admin.rpc('run_autopool_matching').then(
+    ({ error }) => {
+      if (error) console.error('run_autopool_matching failed:', errDetail(error));
+    },
+    (error) => console.error('run_autopool_matching failed:', errDetail(error))
+  );
 }, 5_000);
 
-// F7 push: drain notifications_outbox -> Expo Push API every 3s. Best-effort
-// (Realtime is the reliable in-app path). See notify.ts + migrations 0017/0018.
 startNotificationDrainer(admin, 3_000);
+
+app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('unhandled request error:', errDetail(error));
+  if (!res.headersSent) res.status(500).json({ error: 'internal_error' });
+});
 
 app.listen(PORT, () => console.log(`matching listening on :${PORT}`));

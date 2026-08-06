@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx src/match.test.ts"
+    "test": "tsx src/match.test.ts && tsx --test src/errors.test.ts src/security.test.ts"
   },
   "dependencies": {
     "@mapbox/polyline": "^1.2.1",

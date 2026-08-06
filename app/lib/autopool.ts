@@ -70,7 +70,8 @@ export async function getActivePoolSession(profileId: string): Promise<PoolSessi
 }
 
 export async function cancelPoolSession(sessionId: string): Promise<void> {
-  await supabase.from('auto_pool_sessions').update({ status: 'cancelled' }).eq('id', sessionId);
+  const { error } = await supabase.rpc('cancel_pool_session', { p_session_id: sessionId });
+  if (error) throw new Error(error.message);
 }
 
 // Realtime on the passenger's own session row -> callback on any change.
