@@ -1,6 +1,12 @@
-import { forwardRef, useMemo, useState, type ElementRef } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { BottomSheetModal, BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { forwardRef, useCallback, useEffect, useMemo, useState, type ElementRef } from 'react';
+import { BackHandler, View, Text, Pressable } from 'react-native';
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetFlatList,
+  useBottomSheetModal,
+  type BottomSheetBackdropProps,
+} from '@gorhom/bottom-sheet';
 import { colors } from '../theme/tokens';
 import { Chip } from './Chip';
 import { selectionHaptic } from '../lib/haptics';
@@ -54,12 +60,39 @@ function allDaySlots(): Date[] {
 export const TimePickerSheet = forwardRef<ElementRef<typeof BottomSheetModal>, Props>(
   function TimePickerSheet({ onConfirm, allDay = false, title = 'When?' }, ref) {
     const [day, setDay] = useState(0);
+    const [isPresented, setIsPresented] = useState(false);
+    const { dismiss } = useBottomSheetModal();
     const slots = useMemo(() => (allDay ? allDaySlots() : slotsFor(day)), [allDay, day]);
+    const renderBackdrop = useCallback(
+      (props: BottomSheetBackdropProps) => (
+        <BottomSheetBackdrop
+          {...props}
+          appearsOnIndex={0}
+          disappearsOnIndex={-1}
+          pressBehavior="close"
+        />
+      ),
+      []
+    );
+
+    useEffect(() => {
+      if (!isPresented) return;
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        dismiss();
+        return true;
+      });
+
+      return () => subscription.remove();
+    }, [dismiss, isPresented]);
 
     return (
       <BottomSheetModal
         ref={ref}
         snapPoints={['55%']}
+        backdropComponent={renderBackdrop}
+        onChange={(index) => setIsPresented(index >= 0)}
+        onDismiss={() => setIsPresented(false)}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.glassBorder }}
       >
